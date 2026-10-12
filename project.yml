@@ -1,0 +1,44 @@
+# Proyecto Xcode generado con XcodeGen (https://github.com/yonaskolb/XcodeGen).
+# Generar:  xcodegen generate   →   abre DualSound.xcodeproj
+name: DualSound
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+packages:
+  DualSoundCore:
+    path: Core
+
+targets:
+  DualSound:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: DualSoundCore
+    settings:
+      base:
+        PRODUCT_NAME: DualSound
+        # Cambia esto por un identificador propio antes de instalar en tu iPhone.
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.dualsound
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_PREVIEWS: YES
+
+schemes:
+  DualSound:
+    build:
+      targets:
+        DualSound: all
+    run:
+      config: Debug
