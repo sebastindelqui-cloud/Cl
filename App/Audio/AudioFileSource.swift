@@ -4,7 +4,6 @@ import DualSoundCore
 enum AudioFileSourceError: LocalizedError {
     case unreadable(String)
     case unsupportedFormat
-    case protected
 
     var errorDescription: String? {
         switch self {
@@ -12,8 +11,6 @@ enum AudioFileSourceError: LocalizedError {
             return "No se pudo abrir el archivo de audio: \(reason)"
         case .unsupportedFormat:
             return "El formato de este archivo no es compatible."
-        case .protected:
-            return "El archivo está protegido (DRM) y no se puede reproducir fuera de su app."
         }
     }
 }

@@ -137,6 +137,8 @@ final class SyncedAudioOutput {
             guard let timeline = self.timeline, chunk.streamID == timeline.streamID,
                   chunk.channels == self.format.channels else { return }
             self.retained.append(chunk)
+            // Límite de seguridad (~10 s) por si el reloj nunca llega a sincronizar.
+            if self.retained.count > 500 { self.retained.removeFirst(self.retained.count - 500) }
             self.schedule(chunk)
         }
     }
