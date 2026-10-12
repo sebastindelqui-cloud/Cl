@@ -6,6 +6,25 @@ on:
   workflow_dispatch:
 
 jobs:
+  web-tests:
+    name: Versión web (pruebas + extremo a extremo)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Pruebas unitarias
+        run: npm test
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Emisor + receptor en dos navegadores
+        run: npm run e2e
+
   core-tests:
     name: Pruebas del núcleo (swift test)
     runs-on: macos-15

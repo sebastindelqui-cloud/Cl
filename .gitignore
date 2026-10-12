@@ -11,3 +11,6 @@ build/
 Package.resolved
 
 .DS_Store
+
+# Web
+node_modules/

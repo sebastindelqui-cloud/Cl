@@ -1,0 +1,13 @@
+{
+  "name": "dualsound-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "e2e": "node test/e2e.mjs"
+  },
+  "devDependencies": {
+    "peer": "1.0.2",
+    "playwright": "1.56.0"
+  }
+}

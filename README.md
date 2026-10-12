@@ -10,7 +10,20 @@ parlantes Bluetooth de cualquier marca**.
 > app los sincroniza por WiFi con una precisión de pocos milisegundos.
 > **Necesitas un segundo iPhone, iPad o iPod touch** para el parlante 2.
 
-## Cómo funciona
+## Dos versiones
+
+| | **Versión web** (`web/`) | **App nativa** (`App/`, `Core/`) |
+|---|---|---|
+| Qué necesitas | Solo Safari: sin Mac, sin instalar nada, gratis | Mac con Xcode (o cuenta de desarrollador de Apple para TestFlight) |
+| Segundo teléfono | iPhone **o Android** | iPhone, iPad o iPod touch |
+| Sincronía | Buena, con calibración a oído | La más precisa |
+| Pantalla | Debe quedar encendida con la página abierta | Funciona con la pantalla bloqueada |
+| Documentación | [docs/WEB.md](docs/WEB.md) | Este README y [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) |
+
+**¿No tienes Mac? Usa la versión web:** https://sebastindelqui-cloud.github.io/Cl/
+(primero hay que activar GitHub Pages una vez: ver [docs/WEB.md](docs/WEB.md)).
+
+## Cómo funciona (app nativa)
 
 ```
  Parlante 1 ◄─BT─ iPhone EMISOR ══ WiFi ══► iPhone/iPad RECEPTOR ─BT─► Parlante 2
@@ -53,11 +66,13 @@ Detalles técnicos y protocolo: [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 ├── Core/                       # Paquete Swift DualSoundCore (lógica pura + pruebas)
 │   ├── Sources/DualSoundCore/  # Protocolo, reloj, línea de tiempo, deriva…
 │   └── Tests/DualSoundCoreTests/
+├── web/                        # Versión web (sin Mac): ver docs/WEB.md
 ├── docs/
+│   ├── WEB.md                  # Versión web: uso, protocolo y pruebas
 │   ├── LIMITACIONES.md         # Investigación de API de iOS
 │   ├── ARQUITECTURA.md         # Diseño y protocolo de sincronización
 │   └── PRUEBAS.md              # Compatibilidad y pruebas manuales
-└── .github/workflows/ci.yml    # Pruebas + compilación en macOS
+└── .github/workflows/         # CI (pruebas, compilación iOS) y publicación web
 ```
 
 ## Compilar y ejecutar

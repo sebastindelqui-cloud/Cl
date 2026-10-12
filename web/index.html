@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="DualSound">
+  <title>DualSound</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="#" class="back" id="back" hidden aria-label="Volver">‹ Inicio</a>
+    <h1>DualSound</h1>
+  </header>
+
+  <!-- ============ INICIO ============ -->
+  <main id="view-home" class="view">
+    <p class="intro">
+      Reproduce la misma música en <strong>dos parlantes Bluetooth</strong> de cualquier marca.
+      Como un teléfono solo puede usar <strong>un</strong> parlante Bluetooth a la vez,
+      cada parlante va conectado a un teléfono distinto y DualSound los sincroniza por WiFi.
+    </p>
+
+    <a class="mode" href="#emisor">
+      <span class="mode-icon" aria-hidden="true">📡</span>
+      <span><strong>Emisor</strong><small>Este teléfono elige la música, suena en el parlante 1 y la envía al otro.</small></span>
+    </a>
+    <a class="mode" href="#receptor">
+      <span class="mode-icon" aria-hidden="true">🔊</span>
+      <span><strong>Receptor</strong><small>Este teléfono recibe la música y la reproduce en el parlante 2. Puede ser un iPhone o un Android.</small></span>
+    </a>
+
+    <details class="card">
+      <summary>Cómo usarlo</summary>
+      <ol>
+        <li>Conecta el parlante 1 por Bluetooth a este iPhone y el parlante 2 al otro teléfono.</li>
+        <li>Abre esta misma página en los dos teléfonos, conectados al mismo WiFi.</li>
+        <li>En el otro teléfono elige <strong>Receptor</strong> y toca <strong>Activar audio</strong>. Aparecerá un código de 6 números.</li>
+        <li>En este iPhone elige <strong>Emisor</strong>, escribe ese código y toca <strong>Conectar</strong>.</li>
+        <li>Elige una canción (o la pista de calibración) y toca ▶︎.</li>
+        <li>Si oyes eco, usa la pista de calibración y ajusta el <strong>retardo</strong> del parlante que suena antes hasta oír un solo clic.</li>
+      </ol>
+      <p class="note">Deja la pantalla de los dos teléfonos encendida y con esta página abierta: el navegador pausa el audio si la bloqueas o cambias de app. Desactiva el modo silencio del iPhone si no se escucha.</p>
+    </details>
+
+    <details class="card">
+      <summary>Limitaciones</summary>
+      <ul>
+        <li><strong>Un parlante Bluetooth por teléfono.</strong> iPhone y la mayoría de los Android no permiten enviar audio a dos parlantes Bluetooth a la vez, y una página web tampoco puede cambiarlo. Por eso se necesitan dos teléfonos.</li>
+        <li><strong>Spotify y Apple Music no sirven.</strong> Su audio está protegido; ningún navegador ni app puede capturarlo. Usa archivos de música propios (MP3, M4A, WAV…) de la app Archivos.</li>
+        <li><strong>La salida se elige en el teléfono.</strong> Una página web no puede ver ni elegir el parlante: selecciónalo en el Centro de control (iPhone) o en Ajustes de Bluetooth.</li>
+        <li><strong>Precisión.</strong> El navegador no siempre informa la latencia real de cada parlante Bluetooth. La sincronía automática se completa calibrando el retardo a oído.</li>
+        <li><strong>Emparejamiento.</strong> Para que los teléfonos se encuentren se usa el servidor público gratuito de PeerJS. La música viaja directo entre los teléfonos por tu WiFi.</li>
+      </ul>
+    </details>
+  </main>
+
+  <!-- ============ EMISOR ============ -->
+  <main id="view-host" class="view" hidden>
+    <section class="card transport">
+      <div id="host-track" class="track-name">Sin audio seleccionado</div>
+      <div id="host-time" class="time">0:00</div>
+      <button id="host-play" class="play" disabled aria-label="Reproducir">▶︎</button>
+      <div id="host-quality" class="quality idle"><span class="dot"></span><span class="label">Detenido</span><span class="worst"></span></div>
+    </section>
+
+    <section class="card">
+      <h2>Audio</h2>
+      <label class="button">
+        🎵 Elegir canción…
+        <input id="host-file" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.aif,.aiff,.flac,.caf" hidden>
+      </label>
+      <button id="host-click" class="button secondary">⏱ Pista de calibración (clics)</button>
+      <p class="hint">Archivos de la app Archivos o del teléfono. No funciona con Spotify ni Apple Music (audio protegido).</p>
+    </section>
+
+    <section class="card">
+      <h2>Parlante 1 · este teléfono</h2>
+      <p class="hint">Suena por la salida actual de este teléfono. Elige el parlante Bluetooth en el Centro de control (mantén pulsado el recuadro de música › ícono AirPlay).</p>
+      <label class="toggle"><input id="local-enabled" type="checkbox" checked> Sonar en este teléfono</label>
+      <div id="local-controls"></div>
+      <dl class="metrics">
+        <dt>Error de sincronía</dt><dd id="local-error">—</dd>
+        <dt>Latencia informada</dt><dd id="local-latency">—</dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <h2>Parlante 2 · otro teléfono</h2>
+      <form id="connect-form" class="connect">
+        <input id="connect-code" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="Código (6 números)" autocomplete="off" aria-label="Código del receptor">
+        <button type="submit" class="button">Conectar</button>
+      </form>
+      <div id="receivers"></div>
+      <p class="hint">En el otro teléfono abre esta página › Receptor. Usa el código que aparece allí. Puedes conectar más de un receptor.</p>
+    </section>
+
+    <section class="card" id="host-messages-card" hidden>
+      <h2>Avisos</h2>
+      <ul id="host-messages" class="messages"></ul>
+    </section>
+  </main>
+
+  <!-- ============ RECEPTOR ============ -->
+  <main id="view-receiver" class="view" hidden>
+    <section class="card center">
+      <p class="hint">Código de este receptor</p>
+      <div id="rx-code" class="code">······</div>
+      <button id="rx-unlock" class="button big">🔊 Activar audio</button>
+      <p id="rx-state" class="state">Iniciando…</p>
+    </section>
+
+    <section class="card">
+      <h2>Parlante 2 · este teléfono</h2>
+      <p class="hint">Conecta el parlante 2 por Bluetooth a este teléfono y elígelo como salida de audio. Deja esta página abierta y la pantalla encendida.</p>
+      <div id="rx-quality" class="quality idle"><span class="dot"></span><span class="label">Detenido</span><span class="worst"></span></div>
+      <dl class="metrics">
+        <dt>Canción</dt><dd id="rx-track">—</dd>
+        <dt>Recepción</dt><dd id="rx-transfer">—</dd>
+        <dt>Reloj con el emisor</dt><dd id="rx-clock">—</dd>
+        <dt>Error de sincronía</dt><dd id="rx-error">—</dd>
+        <dt>Corrección de velocidad</dt><dd id="rx-rate">—</dd>
+        <dt>Latencia informada</dt><dd id="rx-latency">—</dd>
+        <dt>Volumen / retardo</dt><dd id="rx-settings">—</dd>
+      </dl>
+    </section>
+
+    <section class="card" id="rx-messages-card" hidden>
+      <h2>Avisos</h2>
+      <ul id="rx-messages" class="messages"></ul>
+    </section>
+  </main>
+
+  <footer class="footer">DualSound Web · <a href="https://github.com/sebastindelqui-cloud/Cl">código</a></footer>
+
+  <script src="vendor/peerjs-1.5.4.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
