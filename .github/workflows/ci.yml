@@ -24,6 +24,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Emisor + receptor en dos navegadores
         run: npm run e2e
+      - name: Amplificador
+        run: npm run e2e:amp
 
   core-tests:
     name: Pruebas del núcleo (swift test)

@@ -15,6 +15,26 @@ instalar nada. Es la opción gratuita para usar DualSound sin Mac.
 
 Cada cambio posterior en `web/` se publica solo.
 
+## Amplificador (un solo teléfono)
+
+`amplificador.html` sube el volumen y los graves de **tus propias canciones**.
+Es un modo aparte que no necesita un segundo teléfono:
+**https://sebastindelqui-cloud.github.io/Cl/amplificador.html**
+
+- **Modos:** Normal, Fuerte y Máximo. También se puede ajustar a mano el
+  volumen extra (hasta +18 dB) y los graves (hasta +12 dB).
+- **Compresor:** acerca las partes suaves a las fuertes, para que la canción
+  suene más fuerte en promedio.
+- **Limitador final:** impide que el sonido se sature (no pasa de 0 dB).
+- **Lista de canciones:** elige varias de la app Archivos; pasa a la siguiente
+  sola. Los ajustes se recuerdan entre visitas.
+- **Limitaciones:** no puede subir el volumen de Spotify ni de otras apps (iOS
+  no lo permite), ni hacer que el parlante supere su potencia física. La
+  página debe quedar abierta mientras suena.
+
+Prueba automática (`npm run e2e:amp`): una canción bajita sube unos 15 dB en
+modo Máximo, y una canción fuerte queda con un pico de −0,7 dB, sin saturar.
+
 ## Uso
 
 1. Conecta el **parlante 1** por Bluetooth a tu iPhone y el **parlante 2** al
@@ -89,6 +109,8 @@ web/
 ├── style.css           # Modo claro y oscuro
 ├── app.js              # Audio sincronizado, PeerJS, emisor y receptor
 ├── sync.js             # Lógica pura: reloj, ancla, deriva, transferencia
+├── amplificador.html   # Amplificador de volumen (un solo teléfono)
+├── amp.js / amp-app.js # Cadena de audio del amplificador e interfaz
 ├── vendor/             # PeerJS 1.5.4 (licencia MIT), incluido para no depender de un CDN
 └── test/
     ├── sync.test.js    # Pruebas unitarias (node --test)

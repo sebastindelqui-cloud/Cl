@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Amplificador">
+  <title>Amplificador</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="./" class="back">‹ Inicio</a>
+    <h1>Amplificador</h1>
+  </header>
+
+  <main class="view">
+    <section class="card transport">
+      <div id="amp-track" class="track-name">Elige tus canciones</div>
+      <div id="amp-time" class="time">0:00</div>
+      <input id="amp-seek" type="range" min="0" max="1000" value="0" aria-label="Posición" disabled>
+      <div class="amp-buttons">
+        <button id="amp-prev" class="round" aria-label="Anterior" disabled>⏮</button>
+        <button id="amp-play" class="play" aria-label="Reproducir" disabled>▶︎</button>
+        <button id="amp-next" class="round" aria-label="Siguiente" disabled>⏭</button>
+      </div>
+      <div class="meter" aria-hidden="true"><div id="amp-meter" class="meter-fill"></div></div>
+      <div id="amp-limit" class="hint">&nbsp;</div>
+    </section>
+
+    <section class="card">
+      <h2>Potencia</h2>
+      <div class="presets" role="group" aria-label="Modo">
+        <button type="button" data-preset="normal">Normal</button>
+        <button type="button" data-preset="fuerte">Fuerte</button>
+        <button type="button" data-preset="maximo">Máximo</button>
+      </div>
+      <div class="control">
+        <div class="control-head"><span>Volumen extra</span><span id="amp-boost-value" class="value"></span></div>
+        <input id="amp-boost" type="range" min="0" max="18" step="1" aria-label="Volumen extra en decibeles">
+      </div>
+      <div class="control">
+        <div class="control-head"><span>Graves</span><span id="amp-bass-value" class="value"></span></div>
+        <input id="amp-bass" type="range" min="0" max="12" step="1" aria-label="Graves en decibeles">
+      </div>
+      <label class="toggle"><input id="amp-compress" type="checkbox"> Compresor (las partes suaves suenan más fuerte)</label>
+      <p class="hint">Si el parlante "cruje" o vibra, baja los graves o el volumen extra.</p>
+    </section>
+
+    <section class="card">
+      <h2>Canciones</h2>
+      <label class="button">
+        🎵 Elegir canciones…
+        <input id="amp-files" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.aif,.aiff,.flac,.caf" multiple hidden>
+      </label>
+      <ol id="amp-list" class="playlist"></ol>
+      <p class="hint">Canciones de la app Archivos. No funciona con Spotify ni Apple Music: iOS no deja que una página o app cambie el sonido de otra app.</p>
+    </section>
+
+    <details class="card">
+      <summary>Para que suene aún más fuerte (también con Spotify)</summary>
+      <ul>
+        <li><strong>Ajustes › Bluetooth › ⓘ</strong> junto a tu parlante › <strong>Tipo de dispositivo › Altavoz</strong>. Si iOS lo trata como audífonos, le limita el volumen.</li>
+        <li><strong>Ajustes › Sonido y vibración › Seguridad de los audífonos</strong> › apaga <strong>Reducir el volumen alto</strong>.</li>
+        <li><strong>Spotify › Configuración › Reproducción › Nivel de volumen › Alto</strong>.</li>
+        <li>Sube también el volumen del parlante con sus propios botones.</li>
+      </ul>
+      <p class="note">Deja esta página abierta y la pantalla encendida mientras escuchas: Safari puede pausar el audio si bloqueas el iPhone. Cuidado con tus oídos: el volumen muy alto por mucho tiempo daña la audición.</p>
+    </details>
+  </main>
+
+  <audio id="amp-audio" preload="auto" playsinline></audio>
+  <script type="module" src="amp-app.js"></script>
+</body>
+</html>
