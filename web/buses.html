@@ -19,6 +19,7 @@
   </header>
 
   <div id="map" class="map" role="application" aria-label="Mapa de rutas"></div>
+  <p id="tiles-note" class="tiles-note" hidden>No se pudo cargar el mapa de calles: se muestran solo las rutas y paradas.</p>
   <div id="pick-banner" class="pick-banner" hidden>
     <span id="pick-text">Toca el mapa</span>
     <button type="button" id="pick-cancel">Listo</button>
@@ -165,6 +166,10 @@
 
     <section class="card">
       <h2>Compartir y respaldo</h2>
+      <div class="row">
+        <button type="button" id="e-copy" class="button secondary">📋 Copiar mis rutas</button>
+        <button type="button" id="e-paste" class="button secondary">📥 Pegar rutas</button>
+      </div>
       <button type="button" id="e-export" class="button secondary">⬇️ Descargar mis rutas (archivo)</button>
       <label class="button secondary">
         ⬆️ Importar rutas (archivo)
@@ -173,9 +178,21 @@
       <p id="e-io-msg" class="hint" role="status"></p>
       <button type="button" id="e-clear" class="button danger">Empezar de cero (borrar todo)</button>
       <button type="button" id="e-example" class="button secondary">Volver a la red de ejemplo</button>
-      <p class="hint">Tus rutas se guardan solo en este teléfono. Descarga el archivo para respaldarlas o compartirlas con amigos.</p>
+      <p class="hint">Tus rutas se guardan solo en este teléfono. Cópialas o descarga el archivo para respaldarlas o compartirlas con amigos.</p>
     </section>
   </main>
+
+  <div id="ask" class="ask" hidden>
+    <form id="ask-form" class="ask-box">
+      <p id="ask-text"></p>
+      <input id="ask-input" autocomplete="off" aria-label="Respuesta">
+      <textarea id="ask-area" rows="6" aria-label="Texto"></textarea>
+      <div class="row">
+        <button type="button" id="ask-cancel" class="button secondary">Cancelar</button>
+        <button type="submit" id="ask-ok" class="button">Aceptar</button>
+      </div>
+    </form>
+  </div>
 
   <p class="footer">Mapa © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>. Tiempos y precios son estimados.</p>
 

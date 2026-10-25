@@ -34,7 +34,6 @@ try {
   page.on('pageerror', (e) => errors.push(e.message));
   // Sin internet en la prueba: los mosaicos del mapa no hacen falta.
   await page.route(/tile\.openstreetmap\.org|nominatim/, (r) => r.abort());
-  page.on('dialog', (d) => d.accept(d.type() === 'prompt' ? `Parada ${Date.now() % 1000}` : undefined));
   await page.goto(`http://127.0.0.1:${PORT}/buses.html`);
 
   // 1. Viaje con transbordo en la red de ejemplo.
@@ -66,7 +65,9 @@ try {
   const box = await page.locator('#map').boundingBox();
   for (const [x, y] of [[0.2, 0.3], [0.5, 0.5], [0.8, 0.7]]) {
     await page.mouse.click(box.x + box.width * x, box.y + box.height * y);
-    await page.waitForTimeout(150);
+    await page.waitForSelector('#ask:not([hidden])');
+    await page.fill('#ask-input', `Parada ${x}`);
+    await page.click('#ask-ok');
   }
   if (process.env.SHOT_DIR) await page.screenshot({ path: `${process.env.SHOT_DIR}/editor.png` });
   await page.click('#pick-cancel');

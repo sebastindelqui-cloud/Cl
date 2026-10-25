@@ -45,10 +45,54 @@ const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&a
 // ---------- Mapa ----------
 
 const map = L.map('map', { zoomControl: true, tap: true }).setView(net.center || [0, 0], net.zoom || 13);
+// Si no cargan las calles (sin internet o bloqueadas), se ven igual las rutas sobre una cuadrícula.
+let tileErrors = 0;
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '© OpenStreetMap',
+}).on('tileerror', () => {
+  tileErrors += 1;
+  if (tileErrors === 3) {
+    $('map').classList.add('no-tiles');
+    $('tiles-note').hidden = false;
+  }
+}).on('tileload', () => {
+  $('map').classList.remove('no-tiles');
+  $('tiles-note').hidden = true;
 }).addTo(map);
+
+// ---------- Ventanitas propias (en vez de prompt/confirm) ----------
+
+let askDone = null;
+
+/** Pregunta en pantalla. `input`: 'text' | 'area' | null. Devuelve el texto, true (sin campo) o null si cancela. */
+function ask(text, { input = null, value = '', ok = 'Aceptar', danger = false } = {}) {
+  $('ask-text').textContent = text;
+  $('ask-input').hidden = input !== 'text';
+  $('ask-area').hidden = input !== 'area';
+  $('ask-input').value = input === 'text' ? value : '';
+  $('ask-area').value = input === 'area' ? value : '';
+  $('ask-ok').textContent = ok;
+  $('ask-ok').classList.toggle('danger-fill', danger);
+  $('ask').hidden = false;
+  const field = input === 'text' ? $('ask-input') : input === 'area' ? $('ask-area') : $('ask-ok');
+  setTimeout(() => { field.focus(); if (input === 'text') field.select(); }, 0);
+  return new Promise((resolve) => {
+    askDone = (accepted) => {
+      $('ask').hidden = true;
+      askDone = null;
+      if (!accepted) resolve(null);
+      else if (input === 'text') resolve($('ask-input').value.trim() || null);
+      else if (input === 'area') resolve($('ask-area').value.trim() || null);
+      else resolve(true);
+    };
+  });
+}
+
+$('ask-form').addEventListener('submit', (e) => { e.preventDefault(); askDone?.(true); });
+$('ask-cancel').addEventListener('click', () => askDone?.(false));
+$('ask').addEventListener('click', (e) => { if (e.target === $('ask')) askDone?.(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') askDone?.(false); });
 
 const networkLayer = L.layerGroup().addTo(map);
 const tripLayer = L.layerGroup().addTo(map);
@@ -383,9 +427,9 @@ function addRecent(from, to) {
   renderSaved();
 }
 
-function addFav() {
+async function addFav() {
   if (!places.from || !places.to) return;
-  const label = prompt('Nombre para este viaje (ej.: Casa → Trabajo):', `${places.from.name} → ${places.to.name}`);
+  const label = await ask('Nombre para este viaje (ej.: Casa → Trabajo):', { input: 'text', value: `${places.from.name} → ${places.to.name}`, ok: 'Guardar' });
   if (!label) return;
   favs = [{ label, from: places.from, to: places.to }, ...favs].slice(0, 20);
   save(KEY.favs, favs);
@@ -563,14 +607,14 @@ function renderDraftStops() {
   }
 }
 
-function addStopToDraft(p) {
+async function addStopToDraft(p) {
   if (!draft) return;
   const all = [...net.stops, ...draft.newStops];
   const near = all.map((s) => ({ s, d: distanceM(p, s) })).filter((x) => x.d < 60).sort((a, b) => a.d - b.d)[0];
   let stop = near?.s;
   if (!stop) {
-    const name = prompt('Nombre de esta parada:', `Parada ${all.length + 1}`);
-    if (!name) return;
+    const name = await ask('Nombre de esta parada:', { input: 'text', value: `Parada ${all.length + 1}`, ok: 'Agregar' });
+    if (!name || !draft) return;
     stop = { id: newId('s'), name: name.trim(), lat: +p.lat.toFixed(6), lng: +p.lng.toFixed(6) };
     draft.newStops.push(stop);
   }
@@ -593,14 +637,14 @@ $('e-color').addEventListener('input', () => draft && renderDraftStops());
 $('e-new-line').addEventListener('click', () => openLineForm(null));
 $('e-add-stops').addEventListener('click', () => startPick('edit', 'Toca el mapa en cada parada, en orden.'));
 
-$('e-lines').addEventListener('click', (e) => {
+$('e-lines').addEventListener('click', async (e) => {
   const edit = e.target.closest('[data-edit]');
   if (edit) { openLineForm(net.lines[Number(edit.dataset.edit)]); return; }
   const del = e.target.closest('[data-del]');
   if (del) {
     const line = net.lines[Number(del.dataset.del)];
-    if (!confirm(`¿Borrar ${line.name}?`)) return;
-    net.lines.splice(Number(del.dataset.del), 1);
+    if (!await ask(`¿Borrar ${line.name}?`, { ok: 'Borrar', danger: true })) return;
+    net.lines.splice(net.lines.indexOf(line), 1);
     pruneStops();
     saveNet();
   }
@@ -657,12 +701,9 @@ $('e-export').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 });
 
-$('e-import').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
+function importText(text) {
   try {
-    const data = JSON.parse(await file.text());
+    const data = JSON.parse(text);
     const errors = validateNetwork(data);
     if (errors.length) { $('e-io-msg').textContent = `No se pudo importar: ${errors.slice(0, 3).join(' ')}`; return; }
     net = data;
@@ -670,12 +711,38 @@ $('e-import').addEventListener('change', async (e) => {
     fitNetwork();
     $('e-io-msg').textContent = `Importadas ${net.lines.length} líneas y ${net.stops.length} paradas.`;
   } catch {
-    $('e-io-msg').textContent = 'El archivo no es válido.';
+    $('e-io-msg').textContent = 'Ese texto no son rutas de Mis Buses.';
+  }
+}
+
+$('e-import').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) importText(await file.text());
+});
+
+function exportText() {
+  const data = { ...net };
+  delete data.example;
+  return JSON.stringify(data);
+}
+
+$('e-copy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(exportText());
+    $('e-io-msg').textContent = 'Rutas copiadas. Pégalas en un mensaje para compartirlas o guardarlas.';
+  } catch {
+    await ask('Copia este texto (mantén presionado → Seleccionar todo → Copiar):', { input: 'area', value: exportText(), ok: 'Listo' });
   }
 });
 
-$('e-clear').addEventListener('click', () => {
-  if (!confirm('¿Borrar todas las líneas y paradas? (Descarga un respaldo antes si las quieres guardar.)')) return;
+$('e-paste').addEventListener('click', async () => {
+  const text = await ask('Pega aquí las rutas que te compartieron:', { input: 'area', ok: 'Importar' });
+  if (text) importText(text);
+});
+
+$('e-clear').addEventListener('click', async () => {
+  if (!await ask('¿Borrar todas las líneas y paradas? Copia o descarga un respaldo antes si las quieres guardar.', { ok: 'Borrar todo', danger: true })) return;
   const c = map.getCenter();
   net = {
     name: 'Mi ciudad', currency: net.currency || '$', center: [c.lat, c.lng], zoom: map.getZoom(),
@@ -684,8 +751,8 @@ $('e-clear').addEventListener('click', () => {
   saveNet();
 });
 
-$('e-example').addEventListener('click', () => {
-  if (!confirm('¿Reemplazar tus rutas por la red de ejemplo?')) return;
+$('e-example').addEventListener('click', async () => {
+  if (!await ask('¿Reemplazar tus rutas por la red de ejemplo?', { ok: 'Reemplazar', danger: true })) return;
   net = clone(EXAMPLE_NETWORK);
   try { localStorage.removeItem(KEY.net); } catch { /* nada */ }
   refreshAll();
