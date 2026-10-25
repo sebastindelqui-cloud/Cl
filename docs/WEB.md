@@ -15,6 +15,31 @@ instalar nada. Es la opción gratuita para usar DualSound sin Mac.
 
 Cada cambio posterior en `web/` se publica solo.
 
+## Mis Buses (mapa de rutas)
+
+`buses.html` te dice **qué buses tomar** para llegar a un lugar, **cuánto cuesta**
+y **a qué hora llegas**: **https://sebastindelqui-cloud.github.io/Cl/buses.html**
+
+- **Buscar viaje:** origen y destino con el nombre de una parada, una dirección
+  (búsqueda de OpenStreetMap), tu ubicación 📍 o tocando el mapa 🗺. Muestra hasta
+  5 opciones con etiquetas *Más rápida*, *Más barata* y *Menos transbordos*,
+  instrucciones paso a paso, el recorrido en el mapa y hora estimada de llegada.
+- **Precios:** pasaje por línea, transbordo (completo, gratis o monto fijo dentro
+  de N minutos), descuentos de estudiante y adulto mayor, varios pasajeros y
+  calculadora de **gasto mensual**.
+- **Horarios:** cada línea tiene frecuencia ("pasa cada N min"), velocidad media
+  y primer/último bus; avisa si una línea no funciona a la hora elegida.
+- **Mis rutas (editor):** crea tus líneas tocando el mapa en cada parada, con su
+  color, pasaje y horario. Se guarda en el teléfono; se puede descargar como
+  archivo para respaldar o compartir con otros, e importar.
+- **Guardados y recientes:** viajes frecuentes (casa → trabajo) a un toque, y
+  botón para compartir el viaje por WhatsApp.
+
+Viene con una **red de ejemplo inventada** para probarla; reemplázala con las
+líneas de tu ciudad. Los tiempos son estimados (no hay GPS en vivo de los buses):
+espera = mitad de la frecuencia, y el viaje se calcula con la distancia entre
+paradas y la velocidad media de la línea.
+
 ## Amplificador (un solo teléfono)
 
 `amplificador.html` sube el volumen y los graves de **tus propias canciones**.
@@ -111,10 +136,15 @@ web/
 ├── sync.js             # Lógica pura: reloj, ancla, deriva, transferencia
 ├── amplificador.html   # Amplificador de volumen (un solo teléfono)
 ├── amp.js / amp-app.js # Cadena de audio del amplificador e interfaz
-├── vendor/             # PeerJS 1.5.4 (licencia MIT), incluido para no depender de un CDN
+├── buses.html / buses.css / buses-app.js  # Mis Buses: mapa, buscador y editor
+├── buses.js            # Lógica pura de rutas, transbordos y precios
+├── buses-data.js       # Red de ejemplo (inventada)
+├── vendor/             # PeerJS 1.5.4 y Leaflet 1.9.4 (MIT / BSD-2), incluidos para no depender de un CDN
 └── test/
     ├── sync.test.js    # Pruebas unitarias (node --test)
-    └── e2e.mjs         # Emisor + receptor en dos Chromium con servidor PeerJS local
+    ├── e2e.mjs         # Emisor + receptor en dos Chromium con servidor PeerJS local
+    ├── buses.test.js   # Rutas, transbordos y precios
+    └── buses-e2e.mjs   # Mis Buses en Chromium
 ```
 
 ## Pruebas
@@ -124,6 +154,7 @@ cd web
 npm install
 npm test        # pruebas unitarias
 npm run e2e     # prueba de extremo a extremo (Chromium headless)
+npm run e2e:buses  # Mis Buses: buscar viaje y crear una línea
 ```
 
 La prueba de extremo a extremo hace todo esto: empareja por código, sincroniza

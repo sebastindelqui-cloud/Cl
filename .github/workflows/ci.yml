@@ -26,6 +26,8 @@ jobs:
         run: npm run e2e
       - name: Amplificador
         run: npm run e2e:amp
+      - name: Mis Buses
+        run: npm run e2e:buses
 
   core-tests:
     name: Pruebas del núcleo (swift test)

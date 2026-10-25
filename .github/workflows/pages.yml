@@ -30,7 +30,7 @@ jobs:
       - name: Preparar el sitio
         run: |
           mkdir -p _site
-          cp web/index.html web/app.js web/sync.js web/style.css web/amplificador.html web/amp.js web/amp-app.js _site/
+          cp web/index.html web/app.js web/sync.js web/style.css web/amplificador.html web/amp.js web/amp-app.js web/buses.html web/buses.css web/buses.js web/buses-data.js web/buses-app.js _site/
           cp -r web/vendor _site/vendor
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
