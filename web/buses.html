@@ -53,7 +53,7 @@
         <button type="button" class="icon" id="to-map" title="Elegir en el mapa" aria-label="Elegir destino en el mapa">🗺</button>
       </div>
       <datalist id="stop-list"></datalist>
-      <p class="hint">Escribe una parada, una dirección o un lugar, o elígelo en el mapa.</p>
+      <p class="hint"><strong>Toca el mapa</strong> para elegir a dónde vas. También puedes escribir una parada, una dirección o un lugar.</p>
 
       <div class="row">
         <label>Salida
@@ -76,6 +76,10 @@
       </div>
       <button type="button" id="search" class="button big">Buscar buses</button>
       <p id="search-msg" class="hint" role="status"></p>
+      <div id="ext-links" class="row" hidden>
+        <a id="gmaps" class="button secondary" target="_blank" rel="noopener">Ver en Google Maps</a>
+        <a id="amaps" class="button secondary" target="_blank" rel="noopener">Ver en Apple Maps</a>
+      </div>
     </section>
 
     <section id="results" aria-live="polite"></section>

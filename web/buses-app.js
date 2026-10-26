@@ -168,6 +168,7 @@ function setPlace(which, place) {
   $(`${which}-input`).value = place ? place.name : '';
   if (endMarkers[which]) endMarkers[which].remove();
   endMarkers[which] = place ? L.marker([place.lat, place.lng], { icon: pinIcon(which), zIndexOffset: 1000 }).addTo(map) : null;
+  updateExternalLinks();
 }
 
 function refreshStopList() {
@@ -216,7 +217,7 @@ function locate() {
   });
 }
 
-async function useGps(which) {
+async function useGps(which, { quiet = false } = {}) {
   msg('Buscando tu ubicación…');
   try {
     const p = await locate();
@@ -225,10 +226,36 @@ async function useGps(which) {
     meMarker = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize: [16, 16] }) }).addTo(map);
     map.setView([p.lat, p.lng], 15);
     const near = net.stops.map((s) => ({ s, d: distanceM(p, s) })).sort((a, b) => a.d - b.d)[0];
-    msg(near ? `Parada más cercana: ${near.s.name} (${formatDistance(near.d)}).` : '');
+    if (!near || near.d > 3000) msg('Estás aquí 📍. No hay rutas cargadas cerca de ti: toca el mapa para elegir a dónde vas y ábrelo en Google Maps, o agrega las líneas de tu ciudad en ✏️ Mis rutas.');
+    else msg(`Estás aquí 📍. Parada más cercana: ${near.s.name} (${formatDistance(near.d)}). Toca el mapa para elegir a dónde vas.`);
   } catch (e) {
-    msg(e.message);
+    msg(quiet ? 'Toca 📍 para usar tu ubicación, o elige en el mapa de dónde sales.' : e.message);
   }
+}
+
+/** Nombre del lugar tocado (calle, barrio) usando OpenStreetMap; si no se puede, coordenadas. */
+async function placeName(p) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&accept-language=es&lat=${p.lat}&lon=${p.lng}`);
+    const a = (await res.json()).address || {};
+    const street = [a.road || a.pedestrian || a.footway, a.house_number].filter(Boolean).join(' ');
+    const place = a.amenity || a.shop || a.building || a.tourism || '';
+    const area = a.neighbourhood || a.suburb || a.city_district || a.city || a.town || '';
+    const name = [place, street, area].filter(Boolean).slice(0, 2).join(', ');
+    if (name) return name;
+  } catch { /* sin internet */ }
+  return `Punto en el mapa (${p.lat.toFixed(4)}, ${p.lng.toFixed(4)})`;
+}
+
+// ---------- Ver en Google Maps / Apple Maps ----------
+
+function updateExternalLinks() {
+  const { from, to } = places;
+  $('ext-links').hidden = !to;
+  if (!to) return;
+  const ll = (p) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+  $('gmaps').href = `https://www.google.com/maps/dir/?api=1${from ? `&origin=${ll(from)}` : ''}&destination=${ll(to)}&travelmode=transit`;
+  $('amaps').href = `https://maps.apple.com/?${from ? `saddr=${ll(from)}&` : ''}daddr=${ll(to)}&dirflg=r`;
 }
 
 // ---------- Elegir en el mapa ----------
@@ -247,18 +274,48 @@ function endPick() {
   $('pick-banner').hidden = true;
 }
 
+async function pickPoint(which, p) {
+  const near = net.stops.find((s) => distanceM(p, s) < 40);
+  if (near) {
+    setPlace(which, stopPlace(near));
+  } else {
+    const place = { ...p, name: 'Buscando nombre…' };
+    setPlace(which, place);
+    place.name = await placeName(p);
+    if (places[which] === place) $(`${which}-input`).value = place.name;
+  }
+  if (which === 'to' && places.from) search();
+}
+
 map.on('click', (e) => {
   const p = { lat: e.latlng.lat, lng: e.latlng.lng };
   if (pickMode === 'from' || pickMode === 'to') {
-    const near = net.stops.find((s) => distanceM(p, s) < 40);
-    setPlace(pickMode, near ? stopPlace(near) : { ...p, name: `Punto en el mapa (${p.lat.toFixed(4)}, ${p.lng.toFixed(4)})` });
     const was = pickMode;
     endPick();
-    if (was === 'to' && places.from) search();
+    pickPoint(was, p);
   } else if (pickMode === 'edit') {
     addStopToDraft(p);
+  } else if (!$('tab-viajar').hidden) {
+    // Sin modo especial: tocar el mapa elige el destino.
+    pickPoint('to', p);
   }
 });
+
+// Botón 📍 sobre el mapa.
+const LocateControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd() {
+    const b = L.DomUtil.create('button', 'map-locate');
+    b.type = 'button';
+    b.title = 'Dónde estoy';
+    b.setAttribute('aria-label', 'Dónde estoy');
+    b.textContent = '📍';
+    L.DomEvent.disableClickPropagation(b);
+    L.DomEvent.on(b, 'click', () => useGps('from'));
+    return b;
+  },
+});
+new LocateControl().addTo(map);
 
 $('pick-cancel').addEventListener('click', endPick);
 
@@ -818,6 +875,8 @@ for (const id of ['m-trips', 'm-days']) $(id).addEventListener('input', updateMo
 
 refreshAll();
 if (!load(KEY.net, null)?.center) fitNetwork();
+// Al abrir, pedir permiso de ubicación para saber de dónde sales.
+useGps('from', { quiet: true });
 
 // Para las pruebas automáticas.
 window.misBuses = { get net() { return net; }, get options() { return lastOptions; }, map };

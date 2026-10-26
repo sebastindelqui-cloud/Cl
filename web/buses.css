@@ -299,3 +299,15 @@
 .ask-box textarea { font-size: 13px; font-family: ui-monospace, Menlo, monospace; }
 
 .button.danger-fill { background: var(--poor); }
+
+.map-locate {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 2px solid rgba(0, 0, 0, .2);
+  background: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+#ext-links .button { text-decoration: none; font-size: 15px; }

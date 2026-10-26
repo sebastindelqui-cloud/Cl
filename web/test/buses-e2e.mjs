@@ -84,6 +84,26 @@ try {
   const again = await page.evaluate(() => window.misBuses.net.lines.map((l) => l.name));
   assert.ok(again.includes('Ruta 99'));
 
+  // 4. Pide la ubicación al abrir y el destino se elige tocando el mapa.
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    permissions: ['geolocation'],
+    geolocation: { latitude: -33.4289, longitude: -70.6693 }, // junto a "Hospital" en la red de ejemplo
+  });
+  const gp = await ctx.newPage();
+  gp.on('pageerror', (e) => errors.push(e.message));
+  await gp.route(/tile\.openstreetmap\.org|nominatim/, (r) => r.abort());
+  await gp.goto(`http://127.0.0.1:${PORT}/buses.html`);
+  await gp.waitForFunction(() => document.getElementById('from-input').value === 'Mi ubicación');
+  await gp.evaluate(() => window.misBuses.map.setView([-33.4529, -70.6253], 15)); // cerca de "Centro Comercial"
+  const mb = await gp.locator('#map').boundingBox();
+  await gp.mouse.click(mb.x + mb.width / 2, mb.y + mb.height / 2);
+  await gp.waitForSelector('.option.selected');
+  assert.match(await gp.getAttribute('#gmaps', 'href'), /google\.com\/maps\/dir\/.*travelmode=transit/);
+  assert.match(await gp.getAttribute('#amaps', 'href'), /maps\.apple\.com\/.*dirflg=r/);
+  if (process.env.SHOT_DIR) await gp.screenshot({ path: `${process.env.SHOT_DIR}/gps.png` });
+  await ctx.close();
+
   assert.deepEqual(errors, []);
   console.log('OK: Mis Buses busca viajes, calcula precios y guarda rutas nuevas.');
 } catch (e) {
