@@ -15,19 +15,20 @@ permissions:
 jobs:
   descargar:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - name: OpenStreetMap (Overpass)
         run: |
           mkdir -p out
-          q_routes='[out:json][timeout:600][maxsize:1073741824];area["ISO3166-1"="CR"][admin_level=2]->.cr;relation["type"="route"]["route"="bus"](area.cr);out geom;'
+          q_routes='[out:json][timeout:900][maxsize:1073741824];area["ISO3166-1"="CR"][admin_level=2]->.cr;relation["type"="route"]["route"="bus"](area.cr)->.r;.r out body;way(r.r);out geom;node(r.r);out;'
           q_stops='[out:json][timeout:300];area["ISO3166-1"="CR"][admin_level=2]->.cr;(node["highway"="bus_stop"](area.cr);node["public_transport"="platform"]["bus"="yes"](area.cr);node["public_transport"="stop_position"]["bus"="yes"](area.cr);node["amenity"="bus_station"](area.cr););out body;'
           q_masters='[out:json][timeout:300];area["ISO3166-1"="CR"][admin_level=2]->.cr;relation["type"="route_master"]["route_master"="bus"](area.cr);out body;'
           fetch() {
-            for host in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://overpass.private.coffee/api/interpreter; do
+            for host in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter https://overpass-api.de/api/interpreter; do
               echo "== $2 desde $host"
-              if curl -sS --fail --max-time 900 --data-urlencode "data=$1" "$host" -o "out/$2.tmp" && head -c 200 "out/$2.tmp" | grep -q '"elements"'; then
+              if curl -sS --fail --max-time 1200 -A "RutaCR/1.0 (+https://github.com/${{ github.repository }})" -H "Accept: application/json" \
+                  --data-urlencode "data=$1" "$host" -o "out/$2.tmp" && head -c 300 "out/$2.tmp" | grep -q '"elements"'; then
                 mv "out/$2.tmp" "out/$2"; ls -la "out/$2"; return 0
               fi
               sleep 20

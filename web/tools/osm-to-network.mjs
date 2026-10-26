@@ -117,6 +117,20 @@ const readJson = (file) => {
 export function convertOsm(routesJson, stopsJson, { skipOperators = /san gabriel/i } = {}) {
   const stopInfo = new Map();
   for (const n of stopsJson.elements || []) if (n.type === 'node') stopInfo.set(n.id, n);
+  // Si la descarga trae los tramos y nodos aparte (out body + way(r) out geom + node(r)),
+  // se los pega a cada miembro de la relación.
+  const wayGeom = new Map();
+  for (const e of routesJson.elements || []) {
+    if (e.type === 'way' && e.geometry) wayGeom.set(e.id, e.geometry);
+    if (e.type === 'node') { if (!stopInfo.has(e.id)) stopInfo.set(e.id, e); }
+  }
+  for (const rel of routesJson.elements || []) {
+    if (rel.type !== 'relation') continue;
+    for (const m of rel.members || []) {
+      if (m.type === 'way' && !m.geometry && wayGeom.has(m.ref)) m.geometry = wayGeom.get(m.ref);
+      if (m.type === 'node' && m.lat == null && stopInfo.has(m.ref)) { m.lat = stopInfo.get(m.ref).lat; m.lon = stopInfo.get(m.ref).lon; }
+    }
+  }
 
   const stops = [];
   const stopIdx = new Map();
