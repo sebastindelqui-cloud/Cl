@@ -185,3 +185,24 @@ test('planificar con rutas oficiales y de OpenStreetMap juntas', () => {
   const sg = planTrip(all, stop('Terminal Los Mangos'), stop(SJ), { departAt: 6 * 60, weekday: MONDAY })[0];
   assert.ok(sg && !sg.estimated);
 });
+
+// ---------- ARESEP ----------
+
+import { convertAresep } from '../tools/aresep-to-network.mjs';
+
+test('convertir ramales de ARESEP usando paradas reales cercanas', () => {
+  const geo = { features: [{
+    properties: { CODCTP2019: '0300', RUTACTP2019: 'SAN JOSE - HEREDIA', OPERADOR: 'EMPRESA X  ', CANTONINICIO: 'SAN JOSÉ', CANTONFINAL: 'HEREDIA' },
+    geometry: { type: 'MultiLineString', coordinates: [[[-84.08, 9.935], [-84.1, 9.97], [-84.117, 9.998]]] },
+  }] };
+  const net = convertAresep(geo, { stops: [{ id: 'n7', name: 'Parque', lat: 9.97, lng: -84.1 }] });
+  assert.equal(net.routes[0].short, '300');
+  assert.equal(net.routes[0].agency, 'Empresa X');
+  assert.equal(net.patterns.length, 2, 'ida y vuelta');
+  const all = mergeNetworks(net);
+  const ida = all.patterns[0];
+  assert.ok(ida.stops.some((i) => all.stops[i].name === 'Parque'));
+  assert.ok(all.stops[ida.stops[0]].virtual);
+  assert.match(all.stops[ida.stops[0]].name, /^Sobre la ruta 300 · km 0/);
+  assert.equal(all.patterns[1].shape[0].join(), ida.shape.at(-1).join(), 'la vuelta usa el trazado al revés');
+});

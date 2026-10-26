@@ -106,7 +106,18 @@ try {
   await shot(page, '6-tipos-de-mapa');
   await page.click('#layers');
 
-  // 8. Computadora: el panel queda a la izquierda.
+  // 8. Todo el país: Heredia → San José con las rutas de ARESEP.
+  await page.evaluate(() => {
+    const { setPlace, search } = window.rutaCR;
+    setPlace('from', { lat: 9.9986, lng: -84.1169, name: 'Parque de Heredia', kind: 'place' });
+    setPlace('to', { lat: 9.9333, lng: -84.0796, name: 'Plaza de la Cultura', kind: 'place' });
+    search();
+  });
+  await page.waitForSelector('#results .option', { timeout: 20000 });
+  assert.match(await page.textContent('#results .option'), /→/);
+  await shot(page, '7-heredia');
+
+  // 9. Computadora: el panel queda a la izquierda.
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.waitForTimeout(300);
   const sheet = await page.locator('#sheet').boundingBox();

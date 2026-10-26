@@ -315,3 +315,8 @@ a { color: var(--blue); }
 .prev-esri-sat { background: linear-gradient(135deg, #24391f, #47603a 40%, #b9a77a 40% 44%, #355029 44%, #5d7144); }
 @media (min-width: 900px) { .styles-pop { bottom: 28px; right: 80px; } }
 .search-box { width: 100%; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); padding: 10px 12px; margin-bottom: 6px; }
+
+.loading { display: flex; align-items: center; gap: 10px; padding: 18px 0; color: var(--muted); font-weight: 600; }
+.spinner { width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--blue); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }

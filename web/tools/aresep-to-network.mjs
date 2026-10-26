@@ -5,7 +5,7 @@
 //
 // Cada ramal trae su código del CTP, la empresa y el trazado, pero no paradas
 // ni horarios. Como paradas se usan las de OpenStreetMap que quedan a menos de
-// 35 m del trazado; donde no hay ninguna en 800 m se agrega un punto "sobre la
+// 35 m del trazado; donde no hay ninguna en 1,8 km se agrega un punto "sobre la
 // ruta" para poder subirse. Las horas son aproximadas (frecuencia estimada).
 
 import fs from 'node:fs';
@@ -15,7 +15,7 @@ import { chainWays } from './osm-to-network.mjs';
 
 const PALETTE = ['#1a56c4', '#d93025', '#188038', '#e37400', '#8430ce', '#00897b', '#c2185b', '#5d4037', '#3949ab', '#7cb342'];
 const SNAP_M = 35;
-const GAP_KM = 0.8;
+const GAP_KM = 1.8; // la caminata máxima a una parada es 1 km
 
 const readJson = (file) => {
   const buf = fs.readFileSync(file);
@@ -88,7 +88,8 @@ export function convertAresep(geojson, osmNet) {
     if (!stopIdx.has(k)) { stopIdx.set(k, stops.length); const s = real[i]; stops.push({ id: s.id, name: s.name, lat: s.lat, lng: s.lng, zone: null }); }
     return stopIdx.get(k);
   };
-  const addVirtual = (p, name) => { stops.push({ id: `a${stops.length}`, name, lat: +p[0].toFixed(6), lng: +p[1].toFixed(6), zone: null, virtual: true }); return stops.length - 1; };
+  // Puntos sobre la ruta: sin nombre guardado (la app lo arma con la ruta y el km) para pesar menos.
+  const addVirtual = (p, r, km) => { stops.push({ lat: +p[0].toFixed(5), lng: +p[1].toFixed(5), virtual: true, r, km: +km.toFixed(1) }); return stops.length - 1; };
 
   const routes = new Map();
   const patterns = [];
@@ -139,7 +140,7 @@ export function convertAresep(geojson, osmNet) {
     let last = null;
     const pushVirtual = (km) => {
       const k = cum.findIndex((c) => c >= km);
-      seq.push({ km, idx: addVirtual(line[k < 0 ? line.length - 1 : k], `Sobre la ruta ${route.short} · km ${km.toFixed(1).replace(".", ",")}`) });
+      seq.push({ km, idx: addVirtual(line[k < 0 ? line.length - 1 : k], route.short, km) });
       last = km;
     };
     if (!placed.length || placed[0].km > 0.3) pushVirtual(0);
@@ -154,14 +155,14 @@ export function convertAresep(geojson, osmNet) {
     if (seq.length < 2) continue;
 
     const kmh = total < 15 ? 16 : total < 40 ? 24 : 38;
-    const shape = simplify(line, 0.00008).map(([a, b]) => [+a.toFixed(5), +b.toFixed(5)]);
+    const shape = simplify(line, 0.00015).map(([a, b]) => [+a.toFixed(5), +b.toFixed(5)]);
     const mk = (s, dir) => {
       const d0 = s[0].km;
       const dist = s.map((x) => +Math.abs(x.km - d0).toFixed(2));
       return {
         id: `a${n}${dir}`, route: route.id, headsign: dir ? (title(pick(p, 'CANTONINICIO')) || route.long) : (title(pick(p, 'CANTONFINAL')) || route.long),
         direction: dir, stops: s.map((x) => x.idx), dist, offsets: dist.map((d) => Math.round((d / kmh) * 60)),
-        shape: dir ? [...shape].reverse() : shape, freq: { headway: 30, first: 5 * 60, last: 21 * 60, estimated: true },
+        ...(dir ? { shapeFrom: `a${n}0` } : { shape }), freq: { headway: 30, first: 5 * 60, last: 21 * 60, estimated: true },
       };
     };
     patterns.push(mk(seq, 0), mk([...seq].reverse(), 1));

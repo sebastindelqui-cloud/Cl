@@ -470,11 +470,19 @@ $('when-mode').addEventListener('change', () => {
 $('when-time').addEventListener('change', () => search({ keepView: true }));
 $('when-day').addEventListener('change', () => search({ keepView: true }));
 
-function search({ keepView = false } = {}) {
+let searchSeq = 0;
+
+async function search({ keepView = false } = {}) {
   if (!state.from || !state.to || state.from.lat == null) {
     if (state.from?.kind === 'gps' && state.from.lat == null) toast('Esperando tu ubicación… o toca el mapa para elegir de dónde sales.');
     return;
   }
+  const seq = ++searchSeq;
+  $('results').innerHTML = '<div class="loading"><span class="spinner" aria-hidden="true"></span>Buscando buses…</div>';
+  if (!keepView) showView('results');
+  setSheet('half');
+  await new Promise((r) => setTimeout(r, 30)); // deja pintar el aviso antes de calcular
+  if (seq !== searchSeq) return;
   const { departAt, weekday } = whenInfo();
   state.options = planOptions(state.net, state.from, state.to, { departAt, weekday, count: 4 });
   addRecent();
@@ -862,11 +870,13 @@ $('set-key-clear').addEventListener('click', () => { save(KEY.gkey, ''); save(KE
 
 async function start() {
   // Horarios oficiales (GTFS) + rutas de todo el país de OpenStreetMap, si están.
-  const [gtfs, osm] = await Promise.all([
+  const optional = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const [gtfs, aresep, osm] = await Promise.all([
     fetch('data/cr-network.json').then((r) => r.json()),
-    fetch('data/cr-osm.json').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    optional('data/cr-aresep.json'),
+    optional('data/cr-osm.json'),
   ]);
-  state.net = mergeNetworks(gtfs, osm);
+  state.net = mergeNetworks(gtfs, aresep, osm);
   state.mapStyle = load(KEY.style, null) || (googleKey() ? 'google-road' : 'osm');
   await buildMap();
   setSheet('half');
@@ -878,7 +888,7 @@ async function start() {
   // Al abrir, pedir la ubicación para saber de dónde sales.
   setPlace('from', { name: 'Tu ubicación', kind: 'gps' });
   locate({ quiet: true });
-  window.rutaCR = { state, search, openStop, openRoute };
+  window.rutaCR = { state, search, setPlace, openStop, openRoute };
 }
 
 start();

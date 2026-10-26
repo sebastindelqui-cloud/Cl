@@ -65,13 +65,28 @@ export const isEstimated = (pattern) => !!pattern.freq?.estimated || !!pattern.f
  */
 export function mergeNetworks(...nets) {
   const out = { sources: [], agencies: [], routes: [], stops: [], patterns: [], fares: {}, services: {} };
+  const byStopId = new Map(); // la misma parada (mismo id) que viene en dos fuentes se guarda una vez
   for (const n of nets.filter(Boolean)) {
-    const base = out.stops.length;
+    const remap = [];
     out.sources.push({ ...n.source, routes: n.routes.length });
     out.agencies.push(...n.agencies);
     out.routes.push(...n.routes);
-    out.stops.push(...n.stops);
-    for (const p of n.patterns) out.patterns.push({ ...p, stops: p.stops.map((s) => s + base) });
+    for (const s of n.stops) {
+      if (s.virtual && !s.name) {
+        s.name = `Sobre la ruta ${s.r} · km ${String(s.km).replace('.', ',')}`;
+        s.id = `v${out.stops.length}`;
+      }
+      if (!s.virtual && s.id && byStopId.has(s.id)) { remap.push(byStopId.get(s.id)); continue; }
+      if (!s.virtual && s.id) byStopId.set(s.id, out.stops.length);
+      remap.push(out.stops.length);
+      out.stops.push(s);
+    }
+    const byId = new Map(n.patterns.map((p) => [p.id, p]));
+    for (const p of n.patterns) {
+      // El trazado de la vuelta puede venir como "el de la ida al revés" para pesar menos.
+      const shape = p.shape || (p.shapeFrom && byId.get(p.shapeFrom)?.shape ? [...byId.get(p.shapeFrom).shape].reverse() : []);
+      out.patterns.push({ ...p, shape, stops: p.stops.map((s) => remap[s]) });
+    }
     Object.assign(out.fares, n.fares);
     Object.assign(out.services, n.services);
   }

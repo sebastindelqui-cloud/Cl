@@ -33,20 +33,31 @@ Cada cambio posterior en `web/` se publica solo.
 
 ### Datos
 
-Por ahora tiene las 3 rutas de **Transportes San Gabriel** (San José –
-Desamparados – Aserrí – San Gabriel – Acosta – Turrujal): 184 paradas reales,
-recorridos y 215 salidas por semana. Vienen del GTFS publicado por el proyecto
-[TC-691 "Tropicalización de la Tecnología"](https://github.com/tropicalizacion/buses)
-de la Universidad de Costa Rica (versión 2021.07b, copiada en `web/data/gtfs-tsg/`).
-Las tarifas son las de esos datos; ARESEP las ajusta, así que pueden haber cambiado.
+| Archivo | Qué trae | Fuente |
+|---|---|---|
+| `data/cr-network.json` | 3 rutas de **Transportes San Gabriel** con horarios oficiales, 184 paradas y tarifas por zona | GTFS del proyecto [TC-691 de la UCR](https://github.com/tropicalizacion/buses) (2021.07b, en `data/gtfs-tsg/`) |
+| `data/cr-aresep.json` | **1.099 ramales de 362 rutas de todo el país** (código del CTP, empresa y recorrido GPS) | [Datos abiertos de ARESEP](https://aresep.go.cr/datos-abiertos/rutas-autobuses/) (capa "Ramales del servicio de autobús") |
+| `data/cr-osm.json` | 68 rutas más y **3.900 paradas de bus** de todo el país | © colaboradores de [OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL) |
 
-Para agregar más rutas: consigue el GTFS de la empresa (formato estándar de
-transporte público), ponlo en una carpeta y conviértelo:
+- Las rutas de ARESEP y OpenStreetMap no traen horario: la app muestra horas
+  **aproximadas** (con "~"), suponiendo un bus cada 30 min de 5 a. m. a 9 p. m.
+- Como paradas de los ramales de ARESEP se usan las de OpenStreetMap que quedan
+  sobre el recorrido; donde no hay, la app indica "hazle la señal al bus".
+- Las tarifas solo vienen en los datos de San Gabriel; en las demás rutas dice
+  "Consultar". ARESEP ajusta las tarifas, así que confirma con el chofer.
+
+**Actualizar los datos:** el workflow *Descargar datos de buses de Costa Rica*
+(pestaña Actions › Run workflow) baja el mapa de Costa Rica de Geofabrik y los
+ramales de ARESEP, y deja todo convertido en la rama `datos-buses`. Para usarlo:
 
 ```sh
-cd web
-node tools/gtfs-to-network.mjs data/gtfs-tsg data/cr-network.json
+git fetch origin datos-buses
+git show origin/datos-buses:cr-osm.json > web/data/cr-osm.json
+git show origin/datos-buses:cr-aresep.json > web/data/cr-aresep.json
 ```
+
+Para agregar horarios oficiales de otra empresa, consigue su GTFS y conviértelo
+con `node tools/gtfs-to-network.mjs <carpeta> data/<nombre>.json`.
 
 ### Clave de Google Maps (opcional)
 
@@ -157,7 +168,7 @@ web/
 ├── buses-map.js        # Mapa: Google Maps o respaldo gratuito
 ├── config.js           # Clave de Google Maps (opcional)
 ├── data/               # GTFS de Transportes San Gabriel y red convertida
-├── tools/gtfs-to-network.mjs  # Convierte un GTFS al formato de la app
+├── tools/              # Convertidores: GTFS, OpenStreetMap, ARESEP
 ├── vendor/             # PeerJS 1.5.4 y Leaflet 1.9.4 (MIT / BSD-2), incluidos para no depender de un CDN
 └── test/
     ├── sync.test.js    # Pruebas unitarias (node --test)

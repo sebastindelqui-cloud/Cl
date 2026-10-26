@@ -50,6 +50,7 @@ jobs:
             python3 web/tools/arcgis-dump.py "$B/$folder" "out/aresep/$folder" "$F" || true
           done
           ls -laR out/aresep
+          node web/tools/aresep-to-network.mjs out/aresep/I_Transporte_Externo/Sector_transporte-0.geojson.gz out/cr-osm.json out/cr-aresep.json
       - name: Revisar ARESEP y CTP
         continue-on-error: true
         run: |
@@ -71,6 +72,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add cr-osm.json osm-routes.json.gz osm-stops.json.gz probe.txt
-          git add aresep || true
+          git add aresep cr-aresep.json || true
           git commit -qm "Datos de buses de Costa Rica ($(date -u +%F))"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" datos-buses
