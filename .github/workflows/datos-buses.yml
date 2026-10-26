@@ -44,8 +44,12 @@ jobs:
       - name: Rutas de autobús de ARESEP (levantamiento GPS)
         continue-on-error: true
         run: |
-          python3 web/tools/arcgis-dump.py https://mapas.aresep.go.cr/server/rest/services/I_Transporte_Externo_PII/I_Transporte_Externo_PII/MapServer out/aresep
-          ls -la out/aresep
+          B=https://mapas.aresep.go.cr/server/rest/services
+          F='bus|autob|parada|ramal|ruta|terminal|tarif'
+          for folder in I_Transporte_Externo_PII I_Transporte_Externo; do
+            python3 web/tools/arcgis-dump.py "$B/$folder" "out/aresep/$folder" "$F" || true
+          done
+          ls -laR out/aresep
       - name: Revisar ARESEP y CTP
         continue-on-error: true
         run: |
