@@ -1,13 +1,15 @@
 name: Descargar datos de buses de Costa Rica
 
-# Descarga de OpenStreetMap todas las rutas y paradas de bus de Costa Rica y
-# revisa los datos abiertos de ARESEP y el CTP. Guarda lo descargado en la rama
-# "datos-buses" para convertirlo después con tools/osm-to-network.mjs.
+# Descarga el mapa de Costa Rica de OpenStreetMap (Geofabrik), saca todas las
+# rutas y paradas de bus, las convierte al formato de la app y guarda el
+# resultado en la rama "datos-buses". También revisa los datos abiertos de
+# ARESEP y el CTP.
 on:
   workflow_dispatch:
   push:
     paths:
       - ".github/workflows/datos-buses.yml"
+      - "web/tools/pbf-to-json.py"
 
 permissions:
   contents: write
@@ -15,30 +17,29 @@ permissions:
 jobs:
   descargar:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - name: OpenStreetMap (Overpass)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Herramientas
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+          pip install --quiet osmium
+      - name: Mapa de Costa Rica (Geofabrik)
         run: |
           mkdir -p out
-          q_routes='[out:json][timeout:900][maxsize:1073741824];area["ISO3166-1"="CR"][admin_level=2]->.cr;relation["type"="route"]["route"="bus"](area.cr)->.r;.r out body;way(r.r);out geom;node(r.r);out;'
-          q_stops='[out:json][timeout:300];area["ISO3166-1"="CR"][admin_level=2]->.cr;(node["highway"="bus_stop"](area.cr);node["public_transport"="platform"]["bus"="yes"](area.cr);node["public_transport"="stop_position"]["bus"="yes"](area.cr);node["amenity"="bus_station"](area.cr););out body;'
-          q_masters='[out:json][timeout:300];area["ISO3166-1"="CR"][admin_level=2]->.cr;relation["type"="route_master"]["route_master"="bus"](area.cr);out body;'
-          fetch() {
-            for host in https://overpass-api.de/api/interpreter https://overpass.private.coffee/api/interpreter https://overpass.kumi.systems/api/interpreter https://overpass-api.de/api/interpreter; do
-              echo "== $2 desde $host"
-              if curl -sS --fail --max-time 1200 -A "RutaCR/1.0 (+https://github.com/${{ github.repository }})" -H "Accept: application/json" \
-                  --data-urlencode "data=$1" "$host" -o "out/$2.tmp" && head -c 300 "out/$2.tmp" | grep -q '"elements"'; then
-                mv "out/$2.tmp" "out/$2"; ls -la "out/$2"; return 0
-              fi
-              sleep 20
-            done
-            return 1
-          }
-          fetch "$q_routes" osm-routes.json
-          fetch "$q_stops" osm-stops.json
-          fetch "$q_masters" osm-masters.json || true
-          gzip -9 -k out/osm-*.json
+          curl -sSfL --retry 4 --retry-delay 15 -A "RutaCR/1.0 (+https://github.com/${{ github.repository }})" \
+            -o cr.osm.pbf https://download.geofabrik.de/central-america/costa-rica-latest.osm.pbf
+          ls -la cr.osm.pbf
+          osmium fileinfo -e cr.osm.pbf | grep -E "Timestamp|Number of" || true
+      - name: Rutas y paradas de bus
+        run: |
+          osmium tags-filter cr.osm.pbf r/route=bus n/highway=bus_stop n/public_transport=platform,stop_position n/amenity=bus_station -o bus.osm.pbf
+          python3 web/tools/pbf-to-json.py bus.osm.pbf out/osm-routes.json out/osm-stops.json
+          node web/tools/osm-to-network.mjs out/osm-routes.json out/osm-stops.json out/cr-osm.json
+          gzip -9 -k out/osm-routes.json out/osm-stops.json
       - name: Revisar ARESEP y CTP
         continue-on-error: true
         run: |
@@ -46,10 +47,8 @@ jobs:
           {
             probe https://aresep.go.cr/datos-abiertos/rutas-autobuses/
             probe https://aresep.go.cr/transparencia/datos-abiertos
-            probe https://aresep.go.cr/datos-abiertos/
             probe https://www.ctp.go.cr/
             probe https://datosabiertos.mopt.go.cr/
-            probe https://www.mopt.go.cr/
           } > out/probe.txt 2>&1
           cat out/probe.txt
       - name: Guardar en la rama datos-buses
@@ -58,7 +57,6 @@ jobs:
           git init -q -b datos-buses
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -f osm-*.json.tmp
-          git add osm-*.json.gz probe.txt
+          git add cr-osm.json osm-routes.json.gz osm-stops.json.gz probe.txt
           git commit -qm "Datos de buses de Costa Rica ($(date -u +%F))"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" datos-buses
