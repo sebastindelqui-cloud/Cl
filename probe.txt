@@ -1,0 +1,75 @@
+### https://aresep.go.cr/datos-abiertos/rutas-autobuses/
+https://mapas.aresep.go.cr/server/services/I_Transporte_Externo_PII/I_Transporte_Externo_PII/MapServer/WFSServer?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities
+https://mapas.aresep.go.cr/server/services/I_Transporte_Externo_PII/I_Transporte_Externo_PII/MapServer/WFSServer?SERVICE=WFS&amp;VERSION=1.1.0&amp;REQUEST=GetCapabilities
+### https://aresep.go.cr/transparencia/datos-abiertos
+### https://www.ctp.go.cr/
+http://windows.microsoft.com/en-US/internet-explorer/
+https://www.csv.go.cr/
+### https://www.ctp.go.cr/visor
+### https://mapas.aresep.go.cr/server/rest/services?f=pjson
+{
+ "currentVersion": 11.5,
+ "folders": [
+  "Administracion",
+  "ARESEP",
+  "Cosent_IE",
+  "Desarrollo",
+  "DGAU_Captura",
+  "DGAU_Externo",
+  "DGAU_Interno",
+  "DGEE",
+  "Estrategia_Territorial",
+  "Hosted",
+  "I_Agua_Captura",
+  "I_Agua_Externo",
+  "I_Agua_Externo_PII",
+  "I_Agua_Interno",
+  "I_Energia_Captura",
+  "I_Energia_Externo",
+  "I_Energia_Externo_PII",
+  "I_Energia_Interno",
+  "I_Transporte_Captura",
+  "I_Transporte_Externo",
+  "I_Transporte_Externo_PII",
+  "I_Transporte_Interno",
+  "I_Transporte_Validador",
+  "Limites",
+  "Nombre_Geografico",
+  "Utilities"
+ ],
+ "services": [
+  {
+   "name": "Base_de_datos_Geográfica_ARESEP_MIL1",
+   "type": "FeatureServer"
+  },
+  {
+   "name": "Base_de_datos_Geográfica_ARESEP_MIL1",
+   "type": "MapServer"
+  },
+  {
+   "name": "Calidad_del_agua",
+   "type": "FeatureServer"
+  },
+  {
+   "name": "Calidad_del_agua",
+   "type": "MapServer"
+  },
+  {
+   "name": "Intervenciones_territoriales_de_la_ARESEP",
+   "type": "FeatureServer"
+  },
+  {
+   "name": "Intervenciones_territoriales_de_la_ARESEP",
+   "type": "MapServer"
+  },
+  {
+   "name": "IT_AcompPOU",
+   "type": "FeatureServer"
+  },
+  {
+   "name": "IT_AcompPOU",
+   "type": "MapServer"
+  }
+ ]
+}### https://datosabiertos.mopt.go.cr/
+curl: (28) Connection timed out after 60001 milliseconds

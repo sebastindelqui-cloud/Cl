@@ -1,0 +1,1283 @@
+{
+ "source": "https://mapas.aresep.go.cr/server/rest/services/I_Transporte_Externo",
+ "layers": [
+  {
+   "service": "Sector_transporte",
+   "id": 0,
+   "name": "Ramales_del_servicio_de_autobus",
+   "geometryType": "esriGeometryPolyline",
+   "count": 1099,
+   "downloaded": 1099,
+   "oid": "OBJECTID",
+   "fields": [
+    {
+     "name": "OBJECTID",
+     "alias": "OBJECTID_1",
+     "type": "esriFieldTypeOID"
+    },
+    {
+     "name": "ID",
+     "alias": "ID",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NOMBREARCHIVO",
+     "alias": "NOMBREARCHIVO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODCTP2019",
+     "alias": "CODCTP2019",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "OPERADOR",
+     "alias": "OPERADOR",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CANTONINICIO",
+     "alias": "CANTONINICIO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CANTONFINAL",
+     "alias": "CANTONFINAL",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGOCANTONINICIO",
+     "alias": "CODIGOCANTONINICIO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGOCANTONFINAL",
+     "alias": "CODIGOCANTONFINAL",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGODISTRITOINICIO",
+     "alias": "CODIGODISTRITOINICIO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGODISTRITOFINAL",
+     "alias": "CODIGODISTRITOFINAL",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "KM_ARESEP",
+     "alias": "KM_ARESEP",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DISTANCIA",
+     "alias": "DISTANCIA",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "RUTACTP2015",
+     "alias": "RUTACTP2015",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "RUTACTP2019",
+     "alias": "RUTACTP2019",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "PENDIENTE",
+     "alias": "PENDIENTE",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TRAZO",
+     "alias": "TRAZO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "PAVIMENTADO",
+     "alias": "PAVIMENTADO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NOPAVIMENTADO",
+     "alias": "NOPAVIMENTADO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "AÑORAMAL",
+     "alias": "AÑORAMAL",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CATEXT",
+     "alias": "CATEXT",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CATLOC",
+     "alias": "CATLOC",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CATTAR",
+     "alias": "CATTAR",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "ID_MAPA",
+     "alias": "ID_MAPA",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODRAMALARESEP",
+     "alias": "CODRAMALARESEP",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "FID_SIG",
+     "alias": "FID_SIG",
+     "type": "esriFieldTypeSmallInteger"
+    },
+    {
+     "name": "SHAPE",
+     "alias": "SHAPE",
+     "type": "esriFieldTypeGeometry"
+    },
+    {
+     "name": "SHAPE.STLength()",
+     "alias": "SHAPE.STLength()",
+     "type": "esriFieldTypeDouble"
+    }
+   ],
+   "sample": {
+    "OBJECTID": 1,
+    "ID": "1443",
+    "NOMBREARCHIVO": "2",
+    "CODCTP2019": "02-02 A",
+    "OPERADOR": "AUTOTRANSPORTES SABANA CEMENTERIO SOCIEDAD ANONIMA  ",
+    "CANTONINICIO": "SAN JOSÉ",
+    "CANTONFINAL": "SAN JOSÉ",
+    "CODIGOCANTONINICIO": "101",
+    "CODIGOCANTONFINAL": "101",
+    "CODIGODISTRITOINICIO": "10104",
+    "CODIGODISTRITOFINAL": "10104",
+    "KM_ARESEP": "3,36",
+    "DISTANCIA": 6.71549607,
+    "RUTACTP2015": "SAN JOSÉ - SABANA - CEMENTERIO - B° LA PITAHAYA",
+    "RUTACTP2019": "SAN JOSE-SABANA-CEMENTERIO",
+    "PENDIENTE": "PENDIENTE",
+    "TRAZO": "PENDIENTE",
+    "PAVIMENTADO": "0",
+    "NOPAVIMENTADO": "0",
+    "AÑORAMAL": "2018",
+    "CATEXT": "U",
+    "CATLOC": "AMSJ",
+    "CATTAR": "ÚNICA",
+    "ID_MAPA": "2",
+    "CODRAMALARESEP": "R0012",
+    "FID_SIG": 1687,
+    "SHAPE.STLength()": 6715.496269298211
+   }
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 2,
+   "name": "Paradas_de_tren",
+   "geometryType": "esriGeometryPoint",
+   "count": 78,
+   "downloaded": 78,
+   "oid": "OBJECTID",
+   "fields": [
+    {
+     "name": "OBJECTID",
+     "alias": "OBJECTID",
+     "type": "esriFieldTypeOID"
+    },
+    {
+     "name": "ID",
+     "alias": "ID",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NOMBRE",
+     "alias": "NOMBRE",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "PROVINCIA",
+     "alias": "PROVINCIA",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CANTON",
+     "alias": "CANTON",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DISTRITO",
+     "alias": "DISTRITO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGO_DTA",
+     "alias": "CODIGO_DTA",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "X",
+     "alias": "X",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Y",
+     "alias": "Y",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Shape",
+     "alias": "Shape",
+     "type": "esriFieldTypeGeometry"
+    }
+   ],
+   "sample": {
+    "OBJECTID": 1,
+    "ID": "001",
+    "NOMBRE": "EST. ATLANTICO",
+    "PROVINCIA": "SAN JOSÉ",
+    "CANTON": "SAN JOSÉ",
+    "DISTRITO": "CARMEN",
+    "CODIGO_DTA": "10101",
+    "X": "492444.00769999996 ",
+    "Y": " 1098551.5043000001"
+   }
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 3,
+   "name": "Paradas_de_taxi",
+   "geometryType": "esriGeometryPoint",
+   "count": 459,
+   "downloaded": 459,
+   "oid": "OBJECTID",
+   "fields": [
+    {
+     "name": "OBJECTID",
+     "alias": "OBJECTID",
+     "type": "esriFieldTypeOID"
+    },
+    {
+     "name": "DIRECCION",
+     "alias": "DIRECCION",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TAXISTIPORURAL",
+     "alias": "TAXISTIPORURAL",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TAXISTIPOSEDAN",
+     "alias": "TAXISTIPOSEDAN",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TAXISTIPOECOLOGICO",
+     "alias": "TAXISTIPOECOLOGICO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TAXISTIPOMICROBUS",
+     "alias": "TAXISTIPOMICROBUS",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TAXISADAPTADOSDISCAPACIDAD",
+     "alias": "TAXISADAPTADOSDISCAPACIDAD",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "ACCESIBILIDADDISCAPACIDAD",
+     "alias": "ACCESIBILIDADDISCAPACIDAD",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "OBSERVACIONESZONAACCESIBILIDAD",
+     "alias": "OBSERVACIONESZONAACCESIBILIDAD",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "EXISTEESTACIONAMIENTOPUBLICO",
+     "alias": "EXISTEESTACIONAMIENTOPUBLICO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "EXISTEESTACIONAMIENTOPRIVADO",
+     "alias": "EXISTEESTACIONAMIENTOPRIVADO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "ORGANIZACIONCOMUNICACION",
+     "alias": "ORGANIZACIONCOMUNICACION",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TELEFONOORGANIZACION",
+     "alias": "TELEFONOORGANIZACION",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "PLATAFORMAAPP",
+     "alias": "PLATAFORMAAPP",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "EXISTEROTULACION",
+     "alias": "EXISTEROTULACION",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "BASEOPERACION",
+     "alias": "BASEOPERACION",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "PROVINCIA",
+     "alias": "PROVINCIA",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CANTÓN",
+     "alias": "CANTÓN",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DISTRITO",
+     "alias": "DISTRITO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGODTA",
+     "alias": "CODIGODTA",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "X",
+     "alias": "X",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Y",
+     "alias": "Y",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "SHAPE",
+     "alias": "SHAPE",
+     "type": "esriFieldTypeGeometry"
+    }
+   ],
+   "sample": {
+    "OBJECTID": 1,
+    "DIRECCION": " ESPARZA",
+    "TAXISTIPORURAL": "SI",
+    "TAXISTIPOSEDAN": "SI",
+    "TAXISTIPOECOLOGICO": "NO",
+    "TAXISTIPOMICROBUS": "SI",
+    "TAXISADAPTADOSDISCAPACIDAD": "SI",
+    "ACCESIBILIDADDISCAPACIDAD": "NO",
+    "OBSERVACIONESZONAACCESIBILIDAD": "NO",
+    "EXISTEESTACIONAMIENTOPUBLICO": "NO",
+    "EXISTEESTACIONAMIENTOPRIVADO": "NO",
+    "ORGANIZACIONCOMUNICACION": "SI",
+    "TELEFONOORGANIZACION": "26365656",
+    "PLATAFORMAAPP": "SI",
+    "EXISTEROTULACION": "AMBAS",
+    "BASEOPERACION": "REGULAR",
+    "PROVINCIA": "PUNTARENAS",
+    "CANTÓN": "ESPARZA",
+    "DISTRITO": "ESPÍRITU SANTO",
+    "CODIGODTA": "60201",
+    "X": "426897.60230000038 ",
+    "Y": " 1104773.9352000002"
+   }
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 4,
+   "name": "Rutas_de_cabotaje",
+   "geometryType": "esriGeometryPolyline",
+   "count": 4,
+   "downloaded": 4,
+   "oid": "OBJECTID",
+   "fields": [
+    {
+     "name": "OBJECTID",
+     "alias": "OBJECTID",
+     "type": "esriFieldTypeOID"
+    },
+    {
+     "name": "OPERADOR",
+     "alias": "OPERADOR",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NOMBRE",
+     "alias": "NOMBRE",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TIPO",
+     "alias": "TIPO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DISTANCIA",
+     "alias": "DISTANCIA",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "Shape",
+     "alias": "Shape",
+     "type": "esriFieldTypeGeometry"
+    },
+    {
+     "name": "Shape.STLength()",
+     "alias": "Shape.STLength()",
+     "type": "esriFieldTypeDouble"
+    }
+   ],
+   "sample": {
+    "OBJECTID": 1,
+    "OPERADOR": "SIXTO HERNÁNDEZ JIRÓN",
+    "NOMBRE": "PUERTO LINDO-BARRA DEL COLORADO ",
+    "TIPO": "MENOR",
+    "DISTANCIA": 22467.0419,
+    "Shape.STLength()": 22467.042755427636
+   }
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 6,
+   "name": "Ramales_del_servicio_de_autobus_CIC",
+   "geometryType": "esriGeometryPolyline",
+   "count": 3418,
+   "downloaded": 3418,
+   "oid": "OBJECTID",
+   "fields": [
+    {
+     "name": "OBJECTID",
+     "alias": "OBJECTID_1",
+     "type": "esriFieldTypeOID"
+    },
+    {
+     "name": "FID_Ramales_Autobus",
+     "alias": "FID_Ramales_Autobus",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "ID",
+     "alias": "ID",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NOMBREARCHIVO",
+     "alias": "NOMBREARCHIVO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODCTP2019",
+     "alias": "CODCTP2019",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "OPERADOR",
+     "alias": "OPERADOR",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CANTONINICIO",
+     "alias": "CANTONINICIO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CANTONFINAL",
+     "alias": "CANTONFINAL",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGOCANTONINICIO",
+     "alias": "CODIGOCANTONINICIO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGOCANTONFINAL",
+     "alias": "CODIGOCANTONFINAL",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGODISTRITOINICIO",
+     "alias": "CODIGODISTRITOINICIO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGODISTRITOFINAL",
+     "alias": "CODIGODISTRITOFINAL",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "KM_ARESEP",
+     "alias": "KM_ARESEP",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DISTANCIA",
+     "alias": "DISTANCIA",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "RUTACTP2015",
+     "alias": "RUTACTP2015",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "RUTACTP2019",
+     "alias": "RUTACTP2019",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "PENDIENTE",
+     "alias": "PENDIENTE",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TRAZO",
+     "alias": "TRAZO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "PAVIMENTADO",
+     "alias": "PAVIMENTADO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NOPAVIMENTADO",
+     "alias": "NOPAVIMENTADO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "AÑORAMAL",
+     "alias": "AÑORAMAL",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CATEXT",
+     "alias": "CATEXT",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CATLOC",
+     "alias": "CATLOC",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CATTAR",
+     "alias": "CATTAR",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "ID_MAPA",
+     "alias": "ID_MAPA",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODRAMALARESEP",
+     "alias": "CODRAMALARESEP",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "FID_SIG",
+     "alias": "FID_SIG",
+     "type": "esriFieldTypeSmallInteger"
+    },
+    {
+     "name": "FID_Distrito_CiudadesIntermedia",
+     "alias": "FID_Distrito_CiudadesIntermedias_3",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "cod_prov",
+     "alias": "cod_prov",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "nom_cant",
+     "alias": "nom_cant",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "nom_prov",
+     "alias": "nom_prov",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "canton",
+     "alias": "canton",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "nom_distr",
+     "alias": "nom_distr",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "cod_distr",
+     "alias": "cod_distr",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "cod_dta",
+     "alias": "cod_dta",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "cod_canton",
+     "alias": "cod_canton",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "RegionSE",
+     "alias": "Region Socio Económica",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "SDE_PR05_CiudadesIntermedias_Co",
+     "alias": "SDE.PR05_CI_Contraloria_2025_v2.area",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "layer",
+     "alias": "layer",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NombreCIC",
+     "alias": "NombreCIC",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Descripcion",
+     "alias": "Descripcion",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DTARelCIC",
+     "alias": "DTA relacionada al CIC",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "SHAPE",
+     "alias": "SHAPE",
+     "type": "esriFieldTypeGeometry"
+    },
+    {
+     "name": "SHAPE.STLength()",
+     "alias": "SHAPE.STLength()",
+     "type": "esriFieldTypeDouble"
+    }
+   ],
+   "sample": {
+    "OBJECTID": 1,
+    "FID_Ramales_Autobus": 8,
+    "ID": "373",
+    "NOMBREARCHIVO": "R_0234",
+    "CODCTP2019": "234",
+    "OPERADOR": "EMPRESARIOS UNIDOS DEL NORTE SOCIEDAD DE RESPONSABILIDAD LIMITADA  ",
+    "CANTONINICIO": "SAN CARLOS",
+    "CANTONFINAL": "SAN CARLOS",
+    "CODIGOCANTONINICIO": "210",
+    "CODIGOCANTONFINAL": "213",
+    "CODIGODISTRITOINICIO": "21001",
+    "CODIGODISTRITOFINAL": "21301",
+    "KM_ARESEP": "134,2",
+    "DISTANCIA": 268.6757301,
+    "RUTACTP2015": "CIUDAD QUESADA – GUATUSO – EL VALLE – UPALA CON EXTENSIÓN A LA FORTUNA” Y “CIUDAD QUESADA – LA TIGRA – VENADO",
+    "RUTACTP2019": "CIUDAD QUESADA-UPALA",
+    "PENDIENTE": "PLANA-ONDULADA",
+    "TRAZO": "I+V",
+    "PAVIMENTADO": "0,817826",
+    "NOPAVIMENTADO": "0,000552",
+    "AÑORAMAL": "2016",
+    "CATEXT": "IL",
+    "CATLOC": "RLOC",
+    "CATTAR": "FRACCIONADA",
+    "ID_MAPA": "234 A CQ -Upala ( Entra Fortuna)",
+    "CODRAMALARESEP": "R0649",
+    "FID_SIG": 14,
+    "FID_Distrito_CiudadesIntermedia": 372,
+    "cod_prov": 2.0,
+    "nom_cant": "San Carlos",
+    "nom_prov": "Alajuela",
+    "canton": "San Carlos",
+    "nom_distr": "La Tigra",
+    "cod_distr": "21008",
+    "cod_dta": 21008,
+    "cod_canton": 210,
+    "RegionSE": "Huetar Norte",
+    "SDE_PR05_CiudadesIntermedias_Co": 0.0,
+    "layer": "Distrito parte cantón CIC Aguas Zarcas - CIC San Carlos",
+    "NombreCIC": "NA",
+    "Descripcion": "Distrito parte de cantón que ocupa CIC Aguas Zarcas - CIC San Carlos",
+    "DTARelCIC": "CIC San Carlos - CIC Aguas Zarcas",
+    "SHAPE.STLength()": 285.87758405420044
+   }
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 8,
+   "name": "Paradas_de_tren_CIC",
+   "geometryType": "esriGeometryPoint",
+   "count": 0,
+   "downloaded": 0,
+   "oid": "OBJECTID",
+   "fields": [
+    {
+     "name": "OBJECTID",
+     "alias": "OBJECTID",
+     "type": "esriFieldTypeOID"
+    },
+    {
+     "name": "FID_Paradas_de_Tren_por_Distrit",
+     "alias": "FID_Paradas_de_Tren_por_Distrito",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "ID",
+     "alias": "ID",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NOMBRE",
+     "alias": "NOMBRE",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "PROVINCIA",
+     "alias": "PROVINCIA",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CANTON",
+     "alias": "CANTON",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DISTRITO",
+     "alias": "DISTRITO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGO_DTA",
+     "alias": "CODIGO_DTA",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "X",
+     "alias": "X",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Y",
+     "alias": "Y",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "FID_Distrito_CiudadesIntermedia",
+     "alias": "FID_Distrito_CiudadesIntermedias_3",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "cod_prov",
+     "alias": "cod_prov",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "nom_cant",
+     "alias": "nom_cant",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "nom_prov",
+     "alias": "nom_prov",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "canton_1",
+     "alias": "canton",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "nom_distr",
+     "alias": "nom_distr",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "cod_distr",
+     "alias": "cod_distr",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "cod_dta",
+     "alias": "cod_dta",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "cod_canton",
+     "alias": "cod_canton",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "RegionSE",
+     "alias": "Region Socio Económica",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "SDE_PR05_CiudadesIntermedias_Co",
+     "alias": "SDE.PR05_CI_Contraloria_2025_v2.area",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "layer",
+     "alias": "layer",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NombreCIC",
+     "alias": "NombreCIC",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Descripcion",
+     "alias": "Descripcion",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DTARelCIC",
+     "alias": "DTA relacionada al CIC",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Shape",
+     "alias": "Shape",
+     "type": "esriFieldTypeGeometry"
+    }
+   ],
+   "sample": null
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 9,
+   "name": "Paradas_de_taxi_CIC",
+   "geometryType": "esriGeometryPoint",
+   "count": 84,
+   "downloaded": 84,
+   "oid": "OBJECTID",
+   "fields": [
+    {
+     "name": "OBJECTID",
+     "alias": "OBJECTID",
+     "type": "esriFieldTypeOID"
+    },
+    {
+     "name": "DIRECCION",
+     "alias": "DIRECCION",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TAXISTIPORURAL",
+     "alias": "TAXISTIPORURAL",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TAXISTIPOSEDAN",
+     "alias": "TAXISTIPOSEDAN",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TAXISTIPOECOLOGICO",
+     "alias": "TAXISTIPOECOLOGICO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TAXISTIPOMICROBUS",
+     "alias": "TAXISTIPOMICROBUS",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TAXISADAPTADOSDISCAPACIDAD",
+     "alias": "TAXISADAPTADOSDISCAPACIDAD",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "ACCESIBILIDADDISCAPACIDAD",
+     "alias": "ACCESIBILIDADDISCAPACIDAD",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "OBSERVACIONESZONAACCESIBILIDAD",
+     "alias": "OBSERVACIONESZONAACCESIBILIDAD",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "EXISTEESTACIONAMIENTOPUBLICO",
+     "alias": "EXISTEESTACIONAMIENTOPUBLICO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "EXISTEESTACIONAMIENTOPRIVADO",
+     "alias": "EXISTEESTACIONAMIENTOPRIVADO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "ORGANIZACIONCOMUNICACION",
+     "alias": "ORGANIZACIONCOMUNICACION",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TELEFONOORGANIZACION",
+     "alias": "TELEFONOORGANIZACION",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "PLATAFORMAAPP",
+     "alias": "PLATAFORMAAPP",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "EXISTEROTULACION",
+     "alias": "EXISTEROTULACION",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "BASEOPERACION",
+     "alias": "BASEOPERACION",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "PROVINCIA",
+     "alias": "PROVINCIA",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CANTÓN",
+     "alias": "CANTÓN",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DISTRITO",
+     "alias": "DISTRITO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "CODIGODTA",
+     "alias": "CODIGODTA",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "X",
+     "alias": "X",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Y",
+     "alias": "Y",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "cod_prov",
+     "alias": "cod_prov",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "cod_distr",
+     "alias": "cod_distr",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "cod_canton",
+     "alias": "cod_canton",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "RegionSE",
+     "alias": "Region Socio Económica",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NombreCIC",
+     "alias": "NombreCIC",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Descripcion",
+     "alias": "Descripcion",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DTARelCIC",
+     "alias": "DTA relacionada al CIC",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "SHAPE",
+     "alias": "SHAPE",
+     "type": "esriFieldTypeGeometry"
+    }
+   ],
+   "sample": {
+    "OBJECTID": 1,
+    "DIRECCION": " SAN ISIDRO DEL GENERAL",
+    "TAXISTIPORURAL": "SI",
+    "TAXISTIPOSEDAN": "SI",
+    "TAXISTIPOECOLOGICO": "SI",
+    "TAXISTIPOMICROBUS": "SI",
+    "TAXISADAPTADOSDISCAPACIDAD": "SI",
+    "ACCESIBILIDADDISCAPACIDAD": "SI",
+    "OBSERVACIONESZONAACCESIBILIDAD": "BIEN",
+    "EXISTEESTACIONAMIENTOPUBLICO": "SI",
+    "EXISTEESTACIONAMIENTOPRIVADO": "NO",
+    "ORGANIZACIONCOMUNICACION": "SI",
+    "TELEFONOORGANIZACION": "88710045",
+    "PLATAFORMAAPP": "NO",
+    "EXISTEROTULACION": "PARADA",
+    "BASEOPERACION": "REGULAR",
+    "PROVINCIA": "SAN JOSÉ",
+    "CANTÓN": "PÉREZ ZELEDÓN",
+    "DISTRITO": "DANIEL FLORES",
+    "CODIGODTA": "11903",
+    "X": "537015.50399999972 ",
+    "Y": " 1030808.5159000009",
+    "cod_prov": 1.0,
+    "cod_distr": "11903",
+    "cod_canton": 119,
+    "RegionSE": "Brunca",
+    "NombreCIC": "CIC Pérez Zeledón",
+    "Descripcion": "Área del CIC Pérez Zeledón",
+    "DTARelCIC": "CIC Pérez Zeledón"
+   }
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 10,
+   "name": "Rutas_de_cabotaje_CIC",
+   "geometryType": "esriGeometryPolyline",
+   "count": 5,
+   "downloaded": 5,
+   "oid": "OBJECTID",
+   "fields": [
+    {
+     "name": "OBJECTID",
+     "alias": "OBJECTID",
+     "type": "esriFieldTypeOID"
+    },
+    {
+     "name": "FID_Recorrido_Cabotaje",
+     "alias": "FID_Recorrido_Cabotaje",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "OPERADOR",
+     "alias": "OPERADOR",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NOMBRE",
+     "alias": "NOMBRE",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "TIPO",
+     "alias": "TIPO",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DISTANCIA",
+     "alias": "DISTANCIA",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "FID_Distrito_CiudadesIntermedia",
+     "alias": "FID_Distrito_CiudadesIntermedias_3",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "cod_prov",
+     "alias": "cod_prov",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "nom_cant",
+     "alias": "nom_cant",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "nom_prov",
+     "alias": "nom_prov",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "canton",
+     "alias": "canton",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "nom_distr",
+     "alias": "nom_distr",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "cod_distr",
+     "alias": "cod_distr",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "cod_dta",
+     "alias": "cod_dta",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "cod_canton",
+     "alias": "cod_canton",
+     "type": "esriFieldTypeInteger"
+    },
+    {
+     "name": "RegionSE",
+     "alias": "Region Socio Económica",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "SDE_PR05_CiudadesIntermedias_Co",
+     "alias": "SDE.PR05_CI_Contraloria_2025_v2.area",
+     "type": "esriFieldTypeDouble"
+    },
+    {
+     "name": "layer",
+     "alias": "layer",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "NombreCIC",
+     "alias": "NombreCIC",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Descripcion",
+     "alias": "Descripcion",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "DTARelCIC",
+     "alias": "DTA relacionada al CIC",
+     "type": "esriFieldTypeString"
+    },
+    {
+     "name": "Shape",
+     "alias": "Shape",
+     "type": "esriFieldTypeGeometry"
+    },
+    {
+     "name": "Shape.STLength()",
+     "alias": "Shape.STLength()",
+     "type": "esriFieldTypeDouble"
+    }
+   ],
+   "sample": {
+    "OBJECTID": 1,
+    "FID_Recorrido_Cabotaje": 1,
+    "OPERADOR": "SIXTO HERNÁNDEZ JIRÓN",
+    "NOMBRE": "PUERTO LINDO-BARRA DEL COLORADO ",
+    "TIPO": "MENOR",
+    "DISTANCIA": 22467.0419,
+    "FID_Distrito_CiudadesIntermedia": 1,
+    "cod_prov": 7.0,
+    "nom_cant": "Pococí",
+    "nom_prov": "Limón",
+    "canton": "Pococí",
+    "nom_distr": "Colorado",
+    "cod_distr": "70206",
+    "cod_dta": 70206,
+    "cod_canton": 702,
+    "RegionSE": "Huetar Caribe",
+    "SDE_PR05_CiudadesIntermedias_Co": 0.0,
+    "layer": "Distrito parte canton CIC Pococí",
+    "NombreCIC": "NA",
+    "Descripcion": "Distrito parte de cantón que ocupa CIC Pococí",
+    "DTARelCIC": "CIC Pococí",
+    "Shape.STLength()": 22467.04275542768
+   }
+  }
+ ],
+ "all": [
+  {
+   "service": "Sector_transporte",
+   "id": 0,
+   "name": "Ramales_del_servicio_de_autobus"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 1,
+   "name": "Oficinas_de_correo_por_distrito"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 2,
+   "name": "Paradas_de_tren"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 3,
+   "name": "Paradas_de_taxi"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 4,
+   "name": "Rutas_de_cabotaje"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 5,
+   "name": "Lineas_de_tren"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 6,
+   "name": "Ramales_del_servicio_de_autobus_CIC"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 7,
+   "name": "Oficinas_de_correo_por_distrito_CIC"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 8,
+   "name": "Paradas_de_tren_CIC"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 9,
+   "name": "Paradas_de_taxi_CIC"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 10,
+   "name": "Rutas_de_cabotaje_CIC"
+  },
+  {
+   "service": "Sector_transporte",
+   "id": 11,
+   "name": "Lineas_de_tren_CIC"
+  }
+ ]
+}
