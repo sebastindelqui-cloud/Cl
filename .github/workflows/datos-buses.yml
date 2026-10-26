@@ -1,0 +1,63 @@
+name: Descargar datos de buses de Costa Rica
+
+# Descarga de OpenStreetMap todas las rutas y paradas de bus de Costa Rica y
+# revisa los datos abiertos de ARESEP y el CTP. Guarda lo descargado en la rama
+# "datos-buses" para convertirlo después con tools/osm-to-network.mjs.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/datos-buses.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  descargar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: OpenStreetMap (Overpass)
+        run: |
+          mkdir -p out
+          q_routes='[out:json][timeout:600][maxsize:1073741824];area["ISO3166-1"="CR"][admin_level=2]->.cr;relation["type"="route"]["route"="bus"](area.cr);out geom;'
+          q_stops='[out:json][timeout:300];area["ISO3166-1"="CR"][admin_level=2]->.cr;(node["highway"="bus_stop"](area.cr);node["public_transport"="platform"]["bus"="yes"](area.cr);node["public_transport"="stop_position"]["bus"="yes"](area.cr);node["amenity"="bus_station"](area.cr););out body;'
+          q_masters='[out:json][timeout:300];area["ISO3166-1"="CR"][admin_level=2]->.cr;relation["type"="route_master"]["route_master"="bus"](area.cr);out body;'
+          fetch() {
+            for host in https://overpass-api.de/api/interpreter https://overpass.kumi.systems/api/interpreter https://overpass.private.coffee/api/interpreter; do
+              echo "== $2 desde $host"
+              if curl -sS --fail --max-time 900 --data-urlencode "data=$1" "$host" -o "out/$2.tmp" && head -c 200 "out/$2.tmp" | grep -q '"elements"'; then
+                mv "out/$2.tmp" "out/$2"; ls -la "out/$2"; return 0
+              fi
+              sleep 20
+            done
+            return 1
+          }
+          fetch "$q_routes" osm-routes.json
+          fetch "$q_stops" osm-stops.json
+          fetch "$q_masters" osm-masters.json || true
+          gzip -9 -k out/osm-*.json
+      - name: Revisar ARESEP y CTP
+        continue-on-error: true
+        run: |
+          probe() { echo "### $1"; curl -sSL --max-time 60 -A "Mozilla/5.0" "$1" | grep -oiE '(https?:)?//[^"'"'"' <>]*(wfs|wms|geoserver|arcgis|mapserver|featureserver|ows|download|descarga|\.zip|\.csv|\.json|\.xlsx|\.kml|\.shp|gtfs)[^"'"'"' <>]*' | sort -u | head -80; }
+          {
+            probe https://aresep.go.cr/datos-abiertos/rutas-autobuses/
+            probe https://aresep.go.cr/transparencia/datos-abiertos
+            probe https://aresep.go.cr/datos-abiertos/
+            probe https://www.ctp.go.cr/
+            probe https://datosabiertos.mopt.go.cr/
+            probe https://www.mopt.go.cr/
+          } > out/probe.txt 2>&1
+          cat out/probe.txt
+      - name: Guardar en la rama datos-buses
+        run: |
+          cd out
+          git init -q -b datos-buses
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f osm-*.json.tmp
+          git add osm-*.json.gz probe.txt
+          git commit -qm "Datos de buses de Costa Rica ($(date -u +%F))"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" datos-buses
