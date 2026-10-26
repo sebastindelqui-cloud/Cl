@@ -15,30 +15,46 @@ instalar nada. Es la opción gratuita para usar DualSound sin Mac.
 
 Cada cambio posterior en `web/` se publica solo.
 
-## Mis Buses (mapa de rutas)
+## Ruta CR (buses de Costa Rica)
 
-`buses.html` te dice **qué buses tomar** para llegar a un lugar, **cuánto cuesta**
-y **a qué hora llegas**: **https://sebastindelqui-cloud.github.io/Cl/buses.html**
+`buses.html` es una app de buses para Costa Rica: **https://sebastindelqui-cloud.github.io/Cl/buses.html**
 
-- **Buscar viaje:** origen y destino con el nombre de una parada, una dirección
-  (búsqueda de OpenStreetMap), tu ubicación 📍 o tocando el mapa 🗺. Muestra hasta
-  5 opciones con etiquetas *Más rápida*, *Más barata* y *Menos transbordos*,
-  instrucciones paso a paso, el recorrido en el mapa y hora estimada de llegada.
-- **Precios:** pasaje por línea, transbordo (completo, gratis o monto fijo dentro
-  de N minutos), descuentos de estudiante y adulto mayor, varios pasajeros y
-  calculadora de **gasto mensual**.
-- **Horarios:** cada línea tiene frecuencia ("pasa cada N min"), velocidad media
-  y primer/último bus; avisa si una línea no funciona a la hora elegida.
-- **Mis rutas (editor):** crea tus líneas tocando el mapa en cada parada, con su
-  color, pasaje y horario. Se guarda en el teléfono; se puede descargar como
-  archivo para respaldar o compartir con otros, e importar.
-- **Guardados y recientes:** viajes frecuentes (casa → trabajo) a un toque, y
-  botón para compartir el viaje por WhatsApp.
+- **Al abrir pide tu ubicación** y la usa como punto de salida.
+- **Destino:** toca el mapa o escribe una parada, dirección o lugar.
+- **Opciones de viaje con horarios reales:** a qué hora pasa el bus, cuándo
+  llegas, cuánto caminas y el pasaje en colones según la zona (tarifa mínima,
+  media o completa). Detalle paso a paso y botón para abrir el viaje en Google Maps.
+- **Paradas con el rótulo azul de parada de bus**, próximos buses en cada parada y
+  horario completo de cada ruta.
+- **Adulto mayor (Ley 7935):** gratis en rutas de menos de 25 km, 50 % entre 25 y
+  50 km y 75 % en más de 50 km (se activa en Ajustes).
+- **Mapa normal o satélite.** Con una clave de Google Maps se usa el mapa de
+  Google; sin clave, un mapa gratuito (OpenStreetMap y Esri).
 
-Viene con una **red de ejemplo inventada** para probarla; reemplázala con las
-líneas de tu ciudad. Los tiempos son estimados (no hay GPS en vivo de los buses):
-espera = mitad de la frecuencia, y el viaje se calcula con la distancia entre
-paradas y la velocidad media de la línea.
+### Datos
+
+Por ahora tiene las 3 rutas de **Transportes San Gabriel** (San José –
+Desamparados – Aserrí – San Gabriel – Acosta – Turrujal): 184 paradas reales,
+recorridos y 215 salidas por semana. Vienen del GTFS publicado por el proyecto
+[TC-691 "Tropicalización de la Tecnología"](https://github.com/tropicalizacion/buses)
+de la Universidad de Costa Rica (versión 2021.07b, copiada en `web/data/gtfs-tsg/`).
+Las tarifas son las de esos datos; ARESEP las ajusta, así que pueden haber cambiado.
+
+Para agregar más rutas: consigue el GTFS de la empresa (formato estándar de
+transporte público), ponlo en una carpeta y conviértelo:
+
+```sh
+cd web
+node tools/gtfs-to-network.mjs data/gtfs-tsg data/cr-network.json
+```
+
+### Clave de Google Maps (opcional)
+
+1. En https://console.cloud.google.com/google/maps-apis/start crea un proyecto.
+2. Activa **Maps JavaScript API** y **Geocoding API**.
+3. En **Credenciales** crea una **clave de API** y limítala a
+   `sebastindelqui-cloud.github.io/*`.
+4. Pégala en la app (⚙️ Ajustes) o en `web/config.js` para que la usen todos.
 
 ## Amplificador (un solo teléfono)
 
@@ -136,15 +152,18 @@ web/
 ├── sync.js             # Lógica pura: reloj, ancla, deriva, transferencia
 ├── amplificador.html   # Amplificador de volumen (un solo teléfono)
 ├── amp.js / amp-app.js # Cadena de audio del amplificador e interfaz
-├── buses.html / buses.css / buses-app.js  # Mis Buses: mapa, buscador y editor
-├── buses.js            # Lógica pura de rutas, transbordos y precios
-├── buses-data.js       # Red de ejemplo (inventada)
+├── buses.html / buses.css / buses-app.js  # Ruta CR: interfaz
+├── buses-core.js       # Planificador con horarios reales y tarifas por zona
+├── buses-map.js        # Mapa: Google Maps o respaldo gratuito
+├── config.js           # Clave de Google Maps (opcional)
+├── data/               # GTFS de Transportes San Gabriel y red convertida
+├── tools/gtfs-to-network.mjs  # Convierte un GTFS al formato de la app
 ├── vendor/             # PeerJS 1.5.4 y Leaflet 1.9.4 (MIT / BSD-2), incluidos para no depender de un CDN
 └── test/
     ├── sync.test.js    # Pruebas unitarias (node --test)
     ├── e2e.mjs         # Emisor + receptor en dos Chromium con servidor PeerJS local
-    ├── buses.test.js   # Rutas, transbordos y precios
-    └── buses-e2e.mjs   # Mis Buses en Chromium
+    ├── buses.test.js   # Planificador, tarifas y conversión del GTFS
+    └── buses-e2e.mjs   # Ruta CR en Chromium
 ```
 
 ## Pruebas
@@ -154,7 +173,7 @@ cd web
 npm install
 npm test        # pruebas unitarias
 npm run e2e     # prueba de extremo a extremo (Chromium headless)
-npm run e2e:buses  # Mis Buses: buscar viaje y crear una línea
+npm run e2e:buses  # Ruta CR: ubicación, buscar viaje, rutas
 ```
 
 La prueba de extremo a extremo hace todo esto: empareja por código, sincroniza

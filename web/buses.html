@@ -1,204 +1,160 @@
 <!doctype html>
-<html lang="es">
+<html lang="es-CR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b1020">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="theme-color" content="#0b3d91">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Mis Buses">
-  <title>Mis Buses</title>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ruta CR">
+  <meta name="description" content="Buses de Costa Rica: qué bus tomar, a qué hora pasa y cuánto cuesta.">
+  <title>Ruta CR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="vendor/leaflet-1.9.4/leaflet.css">
-  <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="buses.css">
 </head>
-<body class="buses">
-  <header class="topbar">
-    <a href="./" class="back">‹ Inicio</a>
-    <h1>Mis Buses</h1>
-    <span id="net-name" class="net-name"></span>
-  </header>
+<body>
+  <div class="app">
+    <div id="map" class="map" role="application" aria-label="Mapa"></div>
 
-  <div id="map" class="map" role="application" aria-label="Mapa de rutas"></div>
-  <p id="tiles-note" class="tiles-note" hidden>No se pudo cargar el mapa de calles: se muestran solo las rutas y paradas.</p>
-  <div id="pick-banner" class="pick-banner" hidden>
-    <span id="pick-text">Toca el mapa</span>
-    <button type="button" id="pick-cancel">Listo</button>
-  </div>
+    <!-- Buscador -->
+    <header class="search-card" id="search-card">
+      <div class="brand-row">
+        <span class="brand"><span class="brand-mark" aria-hidden="true"></span>Ruta CR</span>
+        <button type="button" class="icon-btn" id="open-settings" aria-label="Ajustes">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+        </button>
+      </div>
+      <div class="fields">
+        <div class="field-col" aria-hidden="true"><span class="dot-a"></span><span class="dots"></span><span class="dot-b"></span></div>
+        <div class="field-inputs">
+          <label class="field"><span class="sr">Desde</span>
+            <input id="from-input" placeholder="Desde: tu ubicación" autocomplete="off" enterkeyhint="search">
+          </label>
+          <label class="field"><span class="sr">Hasta</span>
+            <input id="to-input" placeholder="¿A dónde vas?" autocomplete="off" enterkeyhint="search">
+          </label>
+        </div>
+        <button type="button" class="icon-btn swap" id="swap" aria-label="Intercambiar origen y destino">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M7 4 3 8l4 4V9h7V7H7zm10 8v3h-7v2h7v3l4-4z"/></svg>
+        </button>
+      </div>
+      <ul id="suggestions" class="suggestions" role="listbox" hidden></ul>
+    </header>
 
-  <nav class="tabs" role="tablist">
-    <button type="button" role="tab" data-tab="viajar" class="active">🧭 Viajar</button>
-    <button type="button" role="tab" data-tab="lineas">🚌 Líneas</button>
-    <button type="button" role="tab" data-tab="editar">✏️ Mis rutas</button>
-  </nav>
-
-  <!-- ============ VIAJAR ============ -->
-  <main id="tab-viajar" class="view">
-    <div id="example-note" class="card warn" hidden>
-      Estas rutas y precios son <strong>de ejemplo (inventados)</strong>. Ve a <strong>✏️ Mis rutas</strong>
-      para poner las líneas de tu ciudad, o importa un archivo que alguien te comparta.
+    <!-- Botones flotantes -->
+    <div class="fabs" id="fabs">
+      <button type="button" class="fab" id="layers" aria-label="Ver satélite" title="Mapa / Satélite">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="m12 3 9 5-9 5-9-5zm-7.3 8.6L12 15.7l7.3-4.1L21 12.5l-9 5-9-5zm0 4L12 19.7l7.3-4.1L21 16.5l-9 5-9-5z"/></svg>
+      </button>
+      <button type="button" class="fab" id="locate" aria-label="Mi ubicación" title="Mi ubicación">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 3h-2.1A7 7 0 0 0 13 5.1V3h-2v2.1A7 7 0 0 0 5.1 11H3v2h2.1a7 7 0 0 0 5.9 5.9V21h2v-2.1a7 7 0 0 0 5.9-5.9H21zm-9 6a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
+      </button>
     </div>
+    <div id="toast" class="toast" role="status" hidden></div>
 
-    <section class="card">
-      <div class="place">
-        <span class="pin from" aria-hidden="true">A</span>
-        <input id="from-input" list="stop-list" placeholder="¿Desde dónde?" autocomplete="off" aria-label="Origen">
-        <button type="button" class="icon" id="from-gps" title="Mi ubicación" aria-label="Usar mi ubicación">📍</button>
-        <button type="button" class="icon" id="from-map" title="Elegir en el mapa" aria-label="Elegir origen en el mapa">🗺</button>
-      </div>
-      <button type="button" id="swap" class="swap" aria-label="Intercambiar origen y destino">⇅</button>
-      <div class="place">
-        <span class="pin to" aria-hidden="true">B</span>
-        <input id="to-input" list="stop-list" placeholder="¿A dónde vas?" autocomplete="off" aria-label="Destino">
-        <button type="button" class="icon" id="to-gps" title="Mi ubicación" aria-label="Usar mi ubicación como destino">📍</button>
-        <button type="button" class="icon" id="to-map" title="Elegir en el mapa" aria-label="Elegir destino en el mapa">🗺</button>
-      </div>
-      <datalist id="stop-list"></datalist>
-      <p class="hint"><strong>Toca el mapa</strong> para elegir a dónde vas. También puedes escribir una parada, una dirección o un lugar.</p>
+    <!-- Panel inferior -->
+    <section id="sheet" class="sheet" data-state="half" aria-label="Panel">
+      <button type="button" class="handle" id="handle" aria-label="Expandir o contraer el panel"><span></span></button>
+      <div class="sheet-body" id="sheet-body">
 
-      <div class="row">
-        <label>Salida
-          <select id="depart-mode">
-            <option value="now">Ahora</option>
-            <option value="at">A las…</option>
-          </select>
+        <div id="view-home" class="view">
+          <h1 class="title">¿A dónde vas hoy?</h1>
+          <p class="sub" id="home-sub">Toca el mapa o escribe a dónde vas.</p>
+          <div class="segmented" role="tablist">
+            <button type="button" role="tab" data-tab="cerca" class="active">Cerca</button>
+            <button type="button" role="tab" data-tab="rutas">Rutas</button>
+            <button type="button" role="tab" data-tab="guardados">Guardados</button>
+          </div>
+          <div id="tab-cerca" class="tab"></div>
+          <div id="tab-rutas" class="tab" hidden></div>
+          <div id="tab-guardados" class="tab" hidden></div>
+        </div>
+
+        <div id="view-results" class="view" hidden>
+          <div class="view-head">
+            <button type="button" class="back-btn" data-back aria-label="Volver">‹</button>
+            <h2 class="title-sm">Opciones de viaje</h2>
+          </div>
+          <div class="when">
+            <select id="when-mode" aria-label="Cuándo">
+              <option value="now">Salir ahora</option>
+              <option value="at">Salir a las…</option>
+            </select>
+            <input id="when-time" type="time" aria-label="Hora" hidden>
+            <select id="when-day" aria-label="Día" hidden></select>
+          </div>
+          <div id="results"></div>
+        </div>
+
+        <div id="view-trip" class="view" hidden>
+          <div class="view-head">
+            <button type="button" class="back-btn" data-back aria-label="Volver">‹</button>
+            <h2 class="title-sm">Tu viaje</h2>
+          </div>
+          <div id="trip"></div>
+        </div>
+
+        <div id="view-stop" class="view" hidden>
+          <div class="view-head">
+            <button type="button" class="back-btn" data-back aria-label="Volver">‹</button>
+            <h2 class="title-sm">Parada</h2>
+          </div>
+          <div id="stop"></div>
+        </div>
+
+        <div id="view-route" class="view" hidden>
+          <div class="view-head">
+            <button type="button" class="back-btn" data-back aria-label="Volver">‹</button>
+            <h2 class="title-sm">Ruta</h2>
+          </div>
+          <div id="route"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ajustes -->
+    <div id="settings" class="modal" hidden>
+      <form class="modal-box" id="settings-form">
+        <div class="view-head">
+          <h2 class="title-sm">Ajustes</h2>
+          <button type="button" class="icon-btn close" data-close aria-label="Cerrar">✕</button>
+        </div>
+
+        <label class="switch-row">
+          <span><strong>Soy adulto mayor (65+)</strong><small>Muestra el pasaje con el beneficio de la Ley 7935.</small></span>
+          <input type="checkbox" id="set-senior" role="switch">
         </label>
-        <label id="depart-time-wrap" hidden>Hora <input id="depart-time" type="time" value="08:00"></label>
-      </div>
-      <div class="row">
-        <label>Pasajeros <input id="passengers" type="number" min="1" max="20" value="1"></label>
-        <label>Tarifa
-          <select id="profile">
-            <option value="general">General</option>
-            <option value="estudiante">Estudiante</option>
-            <option value="mayor">Adulto mayor</option>
-          </select>
-        </label>
-      </div>
-      <button type="button" id="search" class="button big">Buscar buses</button>
-      <p id="search-msg" class="hint" role="status"></p>
-      <div id="ext-links" class="row" hidden>
-        <a id="gmaps" class="button secondary" target="_blank" rel="noopener">Ver en Google Maps</a>
-        <a id="amaps" class="button secondary" target="_blank" rel="noopener">Ver en Apple Maps</a>
-      </div>
-    </section>
 
-    <section id="results" aria-live="polite"></section>
+        <div class="set-block">
+          <strong>Mapa de Google</strong>
+          <small id="map-status"></small>
+          <input id="set-key" placeholder="Pega aquí tu clave de Google Maps" autocomplete="off" spellcheck="false">
+          <details>
+            <summary>¿Cómo obtengo la clave?</summary>
+            <ol>
+              <li>Entra a <a href="https://console.cloud.google.com/google/maps-apis/start" target="_blank" rel="noopener">console.cloud.google.com</a> con tu cuenta de Google.</li>
+              <li>Crea un proyecto y activa <strong>Maps JavaScript API</strong> (y <strong>Geocoding API</strong> para buscar direcciones).</li>
+              <li>Ve a <strong>Credenciales › Crear credenciales › Clave de API</strong> y cópiala aquí.</li>
+              <li>Recomendado: limita la clave a tu página (por ejemplo <code>sebastindelqui-cloud.github.io/*</code>).</li>
+            </ol>
+            <p>Google pide una tarjeta para verificar la cuenta; el uso personal entra en la parte gratuita.</p>
+          </details>
+          <div class="btn-row">
+            <button type="submit" class="btn primary">Guardar y recargar mapa</button>
+            <button type="button" class="btn ghost" id="set-key-clear">Quitar clave</button>
+          </div>
+        </div>
 
-    <section id="monthly" class="card" hidden>
-      <h2>¿Cuánto gasto al mes?</h2>
-      <div class="row">
-        <label>Viajes al día <input id="m-trips" type="number" min="1" max="10" value="2"></label>
-        <label>Días por semana <input id="m-days" type="number" min="1" max="7" value="5"></label>
-      </div>
-      <p class="big-number" id="m-total"></p>
-      <p class="hint" id="m-detail"></p>
-    </section>
-
-    <section class="card">
-      <h2>⭐ Guardados</h2>
-      <ul id="favs" class="plain-list"></ul>
-      <p id="favs-empty" class="hint">Guarda viajes frecuentes (casa → trabajo) con el botón ⭐ de un resultado.</p>
-      <h2 class="spaced">🕘 Recientes</h2>
-      <ul id="recent" class="plain-list"></ul>
-    </section>
-  </main>
-
-  <!-- ============ LÍNEAS ============ -->
-  <main id="tab-lineas" class="view" hidden>
-    <input id="line-filter" class="search-box" type="search" placeholder="Buscar línea o parada…" aria-label="Buscar línea o parada">
-    <div id="line-list"></div>
-  </main>
-
-  <!-- ============ MIS RUTAS (EDITOR) ============ -->
-  <main id="tab-editar" class="view" hidden>
-    <section class="card">
-      <h2>Tu ciudad</h2>
-      <label class="field">Nombre <input id="e-net-name" placeholder="Ej.: Mi ciudad"></label>
-      <label class="field">Moneda <input id="e-currency" placeholder="$, S/, Q, COP…" maxlength="5"></label>
-      <label class="field">Transbordos
-        <select id="e-transfer">
-          <option value="full">Pago el pasaje completo en cada bus</option>
-          <option value="free">El transbordo es gratis</option>
-          <option value="fixed">El transbordo cuesta un monto fijo</option>
-        </select>
-      </label>
-      <div class="row">
-        <label id="e-transfer-amount-wrap">Monto <input id="e-transfer-amount" type="number" min="0" step="any"></label>
-        <label id="e-transfer-window-wrap">Válido por (min) <input id="e-transfer-window" type="number" min="0"></label>
-      </div>
-      <div class="row">
-        <label>Descuento estudiante % <input id="e-disc-est" type="number" min="0" max="100"></label>
-        <label>Descuento adulto mayor % <input id="e-disc-may" type="number" min="0" max="100"></label>
-      </div>
-      <button type="button" id="e-center" class="button secondary">📍 Centrar el mapa aquí al abrir</button>
-    </section>
-
-    <section class="card">
-      <h2>Líneas</h2>
-      <ul id="e-lines" class="plain-list"></ul>
-      <button type="button" id="e-new-line" class="button">＋ Nueva línea</button>
-    </section>
-
-    <section id="e-line-form" class="card" hidden>
-      <h2 id="e-line-title">Nueva línea</h2>
-      <label class="field">Nombre / número <input id="e-name" placeholder="Ej.: Ruta 12, 506, Alimentador 3"></label>
-      <div class="row">
-        <label>Color <input id="e-color" type="color" value="#1d6fdc"></label>
-        <label>Pasaje <input id="e-fare" type="number" min="0" step="any" placeholder="800"></label>
-      </div>
-      <div class="row">
-        <label>Pasa cada (min) <input id="e-headway" type="number" min="1" value="10"></label>
-        <label>Velocidad (km/h) <input id="e-speed" type="number" min="5" max="80" value="18"></label>
-      </div>
-      <div class="row">
-        <label>Primer bus <input id="e-first" type="time" value="05:30"></label>
-        <label>Último bus <input id="e-last" type="time" value="22:00"></label>
-      </div>
-      <label class="toggle"><input id="e-circular" type="checkbox"> Es circular (vuelve al inicio)</label>
-      <label class="toggle"><input id="e-oneway" type="checkbox"> Solo va en un sentido</label>
-
-      <h2 class="spaced">Paradas (en orden)</h2>
-      <p class="hint">Toca <strong>Agregar paradas en el mapa</strong> y luego toca el mapa en cada parada, en el orden del recorrido. Si tocas una parada que ya existe, se reutiliza.</p>
-      <button type="button" id="e-add-stops" class="button secondary">🗺 Agregar paradas en el mapa</button>
-      <ol id="e-stops" class="stop-edit"></ol>
-      <p id="e-line-msg" class="hint error" role="alert"></p>
-      <div class="row">
-        <button type="button" id="e-save-line" class="button">Guardar línea</button>
-        <button type="button" id="e-cancel-line" class="button secondary">Cancelar</button>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Compartir y respaldo</h2>
-      <div class="row">
-        <button type="button" id="e-copy" class="button secondary">📋 Copiar mis rutas</button>
-        <button type="button" id="e-paste" class="button secondary">📥 Pegar rutas</button>
-      </div>
-      <button type="button" id="e-export" class="button secondary">⬇️ Descargar mis rutas (archivo)</button>
-      <label class="button secondary">
-        ⬆️ Importar rutas (archivo)
-        <input id="e-import" type="file" accept=".json,application/json" hidden>
-      </label>
-      <p id="e-io-msg" class="hint" role="status"></p>
-      <button type="button" id="e-clear" class="button danger">Empezar de cero (borrar todo)</button>
-      <button type="button" id="e-example" class="button secondary">Volver a la red de ejemplo</button>
-      <p class="hint">Tus rutas se guardan solo en este teléfono. Cópialas o descarga el archivo para respaldarlas o compartirlas con amigos.</p>
-    </section>
-  </main>
-
-  <div id="ask" class="ask" hidden>
-    <form id="ask-form" class="ask-box">
-      <p id="ask-text"></p>
-      <input id="ask-input" autocomplete="off" aria-label="Respuesta">
-      <textarea id="ask-area" rows="6" aria-label="Texto"></textarea>
-      <div class="row">
-        <button type="button" id="ask-cancel" class="button secondary">Cancelar</button>
-        <button type="submit" id="ask-ok" class="button">Aceptar</button>
-      </div>
-    </form>
+        <div class="set-block">
+          <strong>Datos de las rutas</strong>
+          <p class="small" id="data-info"></p>
+        </div>
+      </form>
+    </div>
   </div>
-
-  <p class="footer">Mapa © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>. Tiempos y precios son estimados.</p>
 
   <script src="vendor/leaflet-1.9.4/leaflet.js"></script>
   <script type="module" src="buses-app.js"></script>

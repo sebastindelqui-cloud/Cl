@@ -1,882 +1,773 @@
-// Interfaz de Mis Buses: mapa (Leaflet + OpenStreetMap), buscador de viajes,
-// lista de líneas y editor de rutas. La lógica de rutas está en buses.js.
+// Ruta CR: interfaz. Mapa a pantalla completa, buscador arriba y panel abajo.
+// La lógica de rutas está en buses-core.js y el mapa en buses-map.js.
 
 import {
-  planTrip, badgesFor, describeLeg, tripText, discountFactor, monthlyCost, validateNetwork,
-  formatMoney, formatDuration, formatDistance, formatClock, parseClock, distanceM, newId, patternsOf,
-} from './buses.js';
-import { EXAMPLE_NETWORK } from './buses-data.js';
+  planOptions, nextDepartures, routesAtStop, routeTimetable, stopsNear, distanceM, seniorFactor,
+  formatClock, formatDuration, formatDistance, formatColones, formatIn, tripText,
+} from './buses-core.js';
+import { createMap, stopSvg, stopDotSvg, pinSvg, meSvg } from './buses-map.js';
+import { GOOGLE_MAPS_API_KEY } from './config.js';
 
-const L = window.L;
 const $ = (id) => document.getElementById(id);
-const KEY = { net: 'misbuses.network', favs: 'misbuses.favs', recent: 'misbuses.recent' };
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+const CENTER = [9.87, -84.1]; // sur de San José: Desamparados, Aserrí, Acosta
+const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 // ---------- Guardado local ----------
 
-function load(key, fallback) {
-  try {
-    const v = localStorage.getItem(key);
-    return v ? JSON.parse(v) : fallback;
-  } catch {
-    return fallback;
-  }
+const KEY = { favs: 'rutacr.favs', recent: 'rutacr.recent', senior: 'rutacr.senior', gkey: 'rutacr.gkey', type: 'rutacr.maptype' };
+function load(k, fallback) {
+  try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); } catch { return fallback; }
+}
+function save(k, v) {
+  try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* modo privado */ }
 }
 
-function save(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch { /* modo privado o sin espacio: sigue funcionando sin guardar */ }
+const state = {
+  net: null,
+  map: null,
+  from: null, // { lat, lng, name, kind: 'gps' | 'stop' | 'place' }
+  to: null,
+  me: null,
+  options: [],
+  selected: null,
+  senior: load(KEY.senior, false),
+  favs: load(KEY.favs, []),
+  recent: load(KEY.recent, []),
+  mapType: load(KEY.type, 'roadmap'),
+  history: [],
+};
+
+// ---------- Utilidades de interfaz ----------
+
+let toastTimer;
+function toast(text, ms = 3200) {
+  const t = $('toast');
+  t.textContent = text;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, ms);
 }
 
-const clone = (x) => JSON.parse(JSON.stringify(x));
-let net = load(KEY.net, null);
-if (!net || validateNetwork(net).length) net = clone(EXAMPLE_NETWORK);
-let favs = load(KEY.favs, []);
-let recent = load(KEY.recent, []);
-
-function saveNet() {
-  delete net.example;
-  save(KEY.net, net);
-  refreshAll();
+function nowInfo() {
+  const d = new Date();
+  return { minute: d.getHours() * 60 + d.getMinutes(), weekday: d.getDay() };
 }
 
-const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const badge = (r) => `<span class="badge" style="background:${esc(r.color)};color:${esc(r.text)}">${esc(r.short)}</span>`;
+
+// ---------- Panel inferior ----------
+
+const SHEET = { peek: 'var(--sheet-peek)', half: 'var(--sheet-half)', full: 'var(--sheet-full)' };
+function setSheet(s) {
+  $('sheet').dataset.state = s;
+  document.documentElement.style.setProperty('--sheet-h', SHEET[s]);
+}
+
+(function sheetDrag() {
+  const h = $('handle');
+  let startY = null;
+  let startH = 0;
+  h.addEventListener('pointerdown', (e) => {
+    startY = e.clientY;
+    startH = $('sheet').getBoundingClientRect().height;
+    $('sheet').classList.add('dragging');
+    h.setPointerCapture(e.pointerId);
+  });
+  h.addEventListener('pointermove', (e) => {
+    if (startY == null) return;
+    const hpx = Math.max(110, Math.min(window.innerHeight - 160, startH + (startY - e.clientY)));
+    document.documentElement.style.setProperty('--sheet-h', `${hpx}px`);
+  });
+  h.addEventListener('pointerup', (e) => {
+    if (startY == null) return;
+    const dy = startY - e.clientY;
+    $('sheet').classList.remove('dragging');
+    const cur = $('sheet').dataset.state;
+    const order = ['peek', 'half', 'full'];
+    let i = order.indexOf(cur);
+    if (Math.abs(dy) < 8) i = (i + 1) % 3; // toque: siguiente tamaño
+    else if (dy > 0) i = Math.min(2, i + (dy > 220 ? 2 : 1));
+    else i = Math.max(0, i - (dy < -220 ? 2 : 1));
+    setSheet(order[i]);
+    startY = null;
+  });
+})();
+
+function showView(name, { push = true } = {}) {
+  const current = document.querySelector('.sheet-body > .view:not([hidden])')?.id.replace('view-', '');
+  if (push && current && current !== name) state.history.push(current);
+  for (const v of document.querySelectorAll('.sheet-body > .view')) v.hidden = v.id !== `view-${name}`;
+  $('sheet-body').scrollTop = 0;
+}
+
+function goBack() {
+  const prev = state.history.pop() || 'home';
+  showView(prev, { push: false });
+  if (prev === 'home') { clearTrip(); drawStops(); }
+  if (prev === 'results') { drawOptionPreview(state.options[0]); }
+}
+
+document.addEventListener('click', (e) => { if (e.target.closest('[data-back]')) goBack(); });
 
 // ---------- Mapa ----------
 
-const map = L.map('map', { zoomControl: true, tap: true }).setView(net.center || [0, 0], net.zoom || 13);
-// Si no cargan las calles (sin internet o bloqueadas), se ven igual las rutas sobre una cuadrícula.
-let tileErrors = 0;
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '© OpenStreetMap',
-}).on('tileerror', () => {
-  tileErrors += 1;
-  if (tileErrors === 3) {
-    $('map').classList.add('no-tiles');
-    $('tiles-note').hidden = false;
-  }
-}).on('tileload', () => {
-  $('map').classList.remove('no-tiles');
-  $('tiles-note').hidden = true;
-}).addTo(map);
+/** Margen para encuadrar el mapa sin que lo tapen el buscador o el panel. */
+function mapPad() {
+  const card = $('search-card').getBoundingClientRect();
+  const sheet = $('sheet').getBoundingClientRect();
+  if (window.innerWidth >= 900) return { top: 40, right: 80, bottom: 40, left: sheet.right + 30 };
+  const h = { peek: 148, half: window.innerHeight * 0.46, full: window.innerHeight * 0.8 }[$('sheet').dataset.state] || sheet.height;
+  return { top: card.bottom + 20, right: 70, bottom: h + 20, left: 30 };
+}
 
-// ---------- Ventanitas propias (en vez de prompt/confirm) ----------
+const layers = { stops: [], trip: [], route: [], pins: {}, me: null };
+let stopMode = '';
 
-let askDone = null;
+/** Centra un punto en la parte visible del mapa (sin que lo tapen el buscador o el panel). */
+function focusPoint(p, d = 0.0025) {
+  state.map.fitBounds([[p.lat - d, p.lng - d], [p.lat + d, p.lng + d]], mapPad());
+}
 
-/** Pregunta en pantalla. `input`: 'text' | 'area' | null. Devuelve el texto, true (sin campo) o null si cancela. */
-function ask(text, { input = null, value = '', ok = 'Aceptar', danger = false } = {}) {
-  $('ask-text').textContent = text;
-  $('ask-input').hidden = input !== 'text';
-  $('ask-area').hidden = input !== 'area';
-  $('ask-input').value = input === 'text' ? value : '';
-  $('ask-area').value = input === 'area' ? value : '';
-  $('ask-ok').textContent = ok;
-  $('ask-ok').classList.toggle('danger-fill', danger);
-  $('ask').hidden = false;
-  const field = input === 'text' ? $('ask-input') : input === 'area' ? $('ask-area') : $('ask-ok');
-  setTimeout(() => { field.focus(); if (input === 'text') field.select(); }, 0);
-  return new Promise((resolve) => {
-    askDone = (accepted) => {
-      $('ask').hidden = true;
-      askDone = null;
-      if (!accepted) resolve(null);
-      else if (input === 'text') resolve($('ask-input').value.trim() || null);
-      else if (input === 'area') resolve($('ask-area').value.trim() || null);
-      else resolve(true);
-    };
+function clearLayer(list) { list.splice(0).forEach((x) => x.remove()); }
+
+function drawStops(highlight = null) {
+  const z = state.map.getZoom();
+  const mode = z >= 15 ? 'sign' : z >= 13 ? 'dot' : 'none';
+  if (mode === stopMode && !highlight) return;
+  stopMode = mode;
+  clearLayer(layers.stops);
+  if (mode === 'none' || layers.trip.length) return;
+  state.net.stops.forEach((s, i) => {
+    const big = mode === 'sign';
+    layers.stops.push(state.map.addMarker([s.lat, s.lng], {
+      svg: big ? stopSvg(28) : stopDotSvg(), size: big ? [28, 28] : [12, 12], anchor: big ? [14, 14] : [6, 6],
+      z: 5, title: s.name, onClick: () => openStop(i),
+    }));
   });
 }
 
-$('ask-form').addEventListener('submit', (e) => { e.preventDefault(); askDone?.(true); });
-$('ask-cancel').addEventListener('click', () => askDone?.(false));
-$('ask').addEventListener('click', (e) => { if (e.target === $('ask')) askDone?.(false); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') askDone?.(false); });
-
-const networkLayer = L.layerGroup().addTo(map);
-const tripLayer = L.layerGroup().addTo(map);
-const editLayer = L.layerGroup().addTo(map);
-let endMarkers = { from: null, to: null };
-let meMarker = null;
-
-function pinIcon(kind) {
-  return L.divIcon({
-    className: '',
-    html: `<div class="end-pin ${kind}"><span>${kind === 'from' ? 'A' : 'B'}</span></div>`,
-    iconSize: [26, 26],
-    iconAnchor: [13, 26],
+function setPin(which, place) {
+  layers.pins[which]?.remove();
+  layers.pins[which] = null;
+  if (!place || place.kind === 'gps') return;
+  layers.pins[which] = state.map.addMarker([place.lat, place.lng], {
+    svg: pinSvg(which === 'from' ? 'A' : 'B', which === 'from' ? '#138a4a' : '#ce1126'), size: [34, 44], anchor: [17, 43], z: 30,
   });
 }
 
-function stopById(id) {
-  return net.stops.find((s) => s.id === id);
+function setMe(p) {
+  state.me = p;
+  if (layers.me) layers.me.setLatLng([p.lat, p.lng]);
+  else layers.me = state.map.addMarker([p.lat, p.lng], { svg: meSvg(), size: [28, 28], anchor: [14, 14], z: 25 });
 }
 
-function drawNetwork(highlightLineId = null) {
-  networkLayer.clearLayers();
-  const dim = tripLayer.getLayers().length > 0 || highlightLineId;
-  for (const line of net.lines) {
-    const pts = line.stops.map(stopById).filter(Boolean).map((s) => [s.lat, s.lng]);
-    if (line.circular && pts.length > 2) pts.push(pts[0]);
-    const on = !highlightLineId || highlightLineId === line.id;
-    L.polyline(pts, { color: line.color, weight: on && highlightLineId ? 7 : 4, opacity: dim && !(highlightLineId && on) ? 0.25 : 0.85 })
-      .bindTooltip(line.name, { sticky: true })
-      .on('click', () => { if (!pickMode) showLineOnMap(line.id); })
-      .addTo(networkLayer);
-  }
-  const lineNames = new Map();
-  for (const line of net.lines) for (const id of line.stops) {
-    if (!lineNames.has(id)) lineNames.set(id, []);
-    lineNames.get(id).push(line.name);
-  }
-  for (const s of net.stops) {
-    L.circleMarker([s.lat, s.lng], { radius: 5, color: '#fff', weight: 2, fillColor: '#334', fillOpacity: dim ? 0.4 : 1 })
-      .bindPopup(`<strong>${escapeHtml(s.name)}</strong><br><small>${escapeHtml((lineNames.get(s.id) || []).join(', ') || 'Sin líneas')}</small>`
-        + `<br><button type="button" data-go-from="${escapeHtml(s.id)}">Salir de aquí</button> <button type="button" data-go-to="${escapeHtml(s.id)}">Ir aquí</button>`)
-      .addTo(networkLayer);
-  }
+function clearTrip() {
+  clearLayer(layers.trip);
+  clearLayer(layers.route);
+  stopMode = '';
 }
 
-// Botones dentro de las ventanitas de las paradas.
-map.on('popupopen', (e) => {
-  const el = e.popup.getElement();
-  el.querySelector('[data-go-from]')?.addEventListener('click', (ev) => {
-    setPlace('from', stopPlace(stopById(ev.target.dataset.goFrom)));
-    map.closePopup();
-  });
-  el.querySelector('[data-go-to]')?.addEventListener('click', (ev) => {
-    setPlace('to', stopPlace(stopById(ev.target.dataset.goTo)));
-    map.closePopup();
-    if (places.from) search();
-  });
-});
-
-function fitNetwork() {
-  const pts = net.stops.map((s) => [s.lat, s.lng]);
-  if (pts.length > 1) map.fitBounds(pts, { padding: [20, 20] });
-  else if (net.center) map.setView(net.center, net.zoom || 13);
+/** Dibuja un viaje: buses con el color de su ruta, caminatas punteadas y las paradas de subida/bajada. */
+function drawTrip(o, { fit = true } = {}) {
+  clearTrip();
+  clearLayer(layers.stops);
+  const pts = [];
+  for (const l of o.legs) {
+    if (l.type === 'walk') {
+      const line = [[l.from.lat, l.from.lng], [l.to.lat, l.to.lng]];
+      layers.trip.push(state.map.addLine(line, { color: '#5b6478', weight: 5, dashed: true, z: 2 }));
+      pts.push(...line);
+      continue;
+    }
+    const p = l.pattern;
+    const shape = sliceShape(p, l.boardPos, l.alightPos);
+    layers.trip.push(state.map.addLine(shape, { color: '#ffffff', weight: 10, z: 3 }));
+    layers.trip.push(state.map.addLine(shape, { color: l.route.color, weight: 6, z: 4 }));
+    for (let i = l.boardPos + 1; i < l.alightPos; i += 1) {
+      const s = state.net.stops[p.stops[i]];
+      layers.trip.push(state.map.addMarker([s.lat, s.lng], { svg: stopDotSvg(l.route.color), size: [12, 12], anchor: [6, 6], z: 6, title: s.name }));
+    }
+    for (const s of [l.from, l.to]) {
+      const i = state.net.stops.indexOf(s);
+      layers.trip.push(state.map.addMarker([s.lat, s.lng], { svg: stopSvg(30, true), size: [30, 30], anchor: [15, 15], z: 20, title: s.name, onClick: () => openStop(i) }));
+    }
+    pts.push(...shape);
+  }
+  if (fit && pts.length) state.map.fitBounds(pts, mapPad());
 }
 
-// ---------- Origen y destino ----------
+/** Parte del trazado de un recorrido entre dos paradas. */
+function sliceShape(p, a, b) {
+  const S = state.net.stops;
+  const A = S[p.stops[a]];
+  const B = S[p.stops[b]];
+  const near = (pt, s) => (pt[0] - s.lat) ** 2 + (pt[1] - s.lng) ** 2;
+  let ia = 0;
+  let best = Infinity;
+  p.shape.forEach((pt, i) => { const d = near(pt, A); if (d < best) { best = d; ia = i; } });
+  let ib = ia;
+  best = Infinity;
+  for (let i = ia; i < p.shape.length; i += 1) { const d = near(p.shape[i], B); if (d < best) { best = d; ib = i; } }
+  return [[A.lat, A.lng], ...p.shape.slice(ia, ib + 1), [B.lat, B.lng]];
+}
 
-const places = { from: null, to: null };
-const stopPlace = (s) => ({ lat: s.lat, lng: s.lng, name: s.name });
+function drawRoute(routeId) {
+  clearTrip();
+  clearLayer(layers.stops);
+  const pts = [];
+  const seen = new Set();
+  for (const p of state.net.patterns.filter((x) => x.route === routeId)) {
+    const r = state.net.routes.find((x) => x.id === routeId);
+    layers.route.push(state.map.addLine(p.shape, { color: '#ffffff', weight: 9, z: 3 }));
+    layers.route.push(state.map.addLine(p.shape, { color: r.color, weight: 5, z: 4 }));
+    pts.push(...p.shape);
+    for (const si of p.stops) {
+      if (seen.has(si)) continue;
+      seen.add(si);
+      const s = state.net.stops[si];
+      layers.route.push(state.map.addMarker([s.lat, s.lng], { svg: stopDotSvg(r.color), size: [12, 12], anchor: [6, 6], z: 6, title: s.name, onClick: () => openStop(si) }));
+    }
+  }
+  state.map.fitBounds(pts, mapPad());
+}
+
+// ---------- Ubicación ----------
+
+function locate({ quiet = false } = {}) {
+  if (!navigator.geolocation) {
+    if (state.from?.kind === 'gps' && state.from.lat == null) setPlace('from', null);
+    if (!quiet) toast('Este navegador no permite usar la ubicación.');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    setMe(p);
+    if (!state.from || state.from.kind === 'gps') setPlace('from', { ...p, name: 'Tu ubicación', kind: 'gps' });
+    focusPoint(p);
+    renderNearby();
+    const near = stopsNear(state.net, p, 3000)[0];
+    if (!near && !quiet) toast('Todavía no hay rutas de Ruta CR cerca de ti. Puedes ver la ruta en Google Maps.', 5000);
+  }, () => {
+    if (state.from?.kind === 'gps' && state.from.lat == null) setPlace('from', null);
+    toast(quiet ? 'Sin permiso de ubicación: toca el mapa para elegir de dónde sales.' : 'No se pudo obtener tu ubicación. Revisa el permiso de ubicación del navegador.', 5000);
+  }, { enableHighAccuracy: true, timeout: 12_000, maximumAge: 30_000 });
+}
+
+$('locate').addEventListener('click', () => locate());
+
+// ---------- Origen, destino y búsqueda ----------
 
 function setPlace(which, place) {
-  places[which] = place;
+  state[which] = place;
   $(`${which}-input`).value = place ? place.name : '';
-  if (endMarkers[which]) endMarkers[which].remove();
-  endMarkers[which] = place ? L.marker([place.lat, place.lng], { icon: pinIcon(which), zIndexOffset: 1000 }).addTo(map) : null;
-  updateExternalLinks();
+  setPin(which, place);
 }
 
-function refreshStopList() {
-  const names = [...new Set(net.stops.map((s) => s.name))].sort((a, b) => a.localeCompare(b, 'es'));
-  $('stop-list').innerHTML = names.map((n) => `<option value="${escapeHtml(n)}"></option>`).join('');
-}
+const ICONS = {
+  stop: stopSvg(32),
+  place: '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>',
+  gps: '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 3h-2.1A7 7 0 0 0 13 5.1V3h-2v2.1A7 7 0 0 0 5.1 11H3v2h2.1a7 7 0 0 0 5.9 5.9V21h2v-2.1a7 7 0 0 0 5.9-5.9H21z"/></svg>',
+  search: '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M10 3a7 7 0 0 1 5.6 11.2l5.1 5.1-1.4 1.4-5.1-5.1A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 10.4 3.5 2.1-.8 1.3L11 13V7h2z"/></svg>',
+};
 
-const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+let activeField = null;
+let suggestTimer;
 
-/** Convierte lo escrito en un punto: parada, "lat, lng" o dirección (OpenStreetMap). */
-async function resolveInput(which) {
-  const text = $(`${which}-input`).value.trim();
-  if (!text) return null;
-  if (places[which] && places[which].name === text) return places[which];
-  const exact = net.stops.find((s) => norm(s.name) === norm(text));
-  if (exact) return stopPlace(exact);
-  const coords = /^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/.exec(text);
-  if (coords) return { lat: Number(coords[1]), lng: Number(coords[2]), name: text };
-  const partial = net.stops.find((s) => norm(s.name).includes(norm(text)));
-  if (partial) return stopPlace(partial);
-  return geocode(text);
-}
-
-async function geocode(text) {
-  try {
-    const b = map.getBounds().pad(1.5);
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&q=${encodeURIComponent(text)}`
-      + `&viewbox=${b.getWest()},${b.getNorth()},${b.getEast()},${b.getSouth()}&bounded=1`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    const [hit] = await res.json();
-    if (!hit) return null;
-    return { lat: Number(hit.lat), lng: Number(hit.lon), name: text };
-  } catch {
-    return null;
+function suggestionsFor(text) {
+  const q = norm(text);
+  const items = [];
+  if (activeField === 'from') items.push({ icon: 'gps', main: 'Tu ubicación', sub: 'Usar el GPS del teléfono', act: 'gps' });
+  if (!q) {
+    for (const r of state.recent.slice(0, 4)) items.push({ icon: 'clock', main: r.to.name, sub: `Desde ${r.from.name}`, act: 'recent', data: r });
+    return items;
   }
+  const stops = state.net.stops
+    .map((s, i) => ({ s, i, n: norm(s.name) }))
+    .filter((x) => x.n.includes(q))
+    .sort((a, b) => a.n.indexOf(q) - b.n.indexOf(q))
+    .slice(0, 6);
+  for (const { s, i } of stops) {
+    items.push({ icon: 'stop', main: s.name, sub: `Parada · ${routesAtStop(state.net, i).map((r) => r.short).join(', ')}`, act: 'stop', data: i });
+  }
+  items.push({ icon: 'search', main: `Buscar "${text.trim()}"`, sub: 'Dirección o lugar en el mapa', act: 'geocode', data: text.trim() });
+  return items;
 }
 
-function locate() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) { reject(new Error('Tu navegador no permite ubicación.')); return; }
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, name: 'Mi ubicación' }),
-      () => reject(new Error('No se pudo obtener tu ubicación. Revisa que la página tenga permiso.')),
-      { enableHighAccuracy: true, timeout: 10_000 },
-    );
+function renderSuggestions() {
+  const box = $('suggestions');
+  if (!activeField) { box.hidden = true; return; }
+  const items = suggestionsFor($(`${activeField}-input`).value);
+  if (!items.length) { box.hidden = true; return; }
+  box.innerHTML = items.map((it, k) => `<li><button type="button" data-k="${k}"><span class="s-icon">${ICONS[it.icon]}</span>`
+    + `<span><span class="s-main">${esc(it.main)}</span><span class="s-sub">${esc(it.sub)}</span></span></button></li>`).join('');
+  box.hidden = false;
+  box.items = items;
+}
+
+async function chooseSuggestion(it) {
+  const which = activeField;
+  closeSuggestions();
+  if (it.act === 'gps') { setPlace('from', { name: 'Tu ubicación', kind: 'gps', ...(state.me || {}) }); locate(); return; }
+  if (it.act === 'recent') { setPlace('from', it.data.from); setPlace('to', it.data.to); search(); return; }
+  if (it.act === 'stop') {
+    const s = state.net.stops[it.data];
+    setPlace(which, { lat: s.lat, lng: s.lng, name: s.name, kind: 'stop' });
+  } else if (it.act === 'geocode') {
+    toast('Buscando…', 1500);
+    const p = await geocode(it.data);
+    if (!p) { toast(`No encontré "${it.data}". Prueba con otro nombre o toca el mapa.`); return; }
+    setPlace(which, p);
+    focusPoint(p);
+  }
+  if (state.to && state.from) search();
+  else if (which === 'to') { $('from-input').focus(); }
+}
+
+function closeSuggestions() {
+  activeField = null;
+  $('suggestions').hidden = true;
+  document.activeElement?.blur?.();
+}
+
+for (const which of ['from', 'to']) {
+  const input = $(`${which}-input`);
+  input.addEventListener('focus', () => { activeField = which; input.select(); renderSuggestions(); setSheet('peek'); });
+  input.addEventListener('input', () => { clearTimeout(suggestTimer); suggestTimer = setTimeout(renderSuggestions, 80); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); const it = $('suggestions').items?.find((x) => x.act !== 'gps'); if (it) chooseSuggestion(it); }
+    if (e.key === 'Escape') { closeSuggestions(); if (state[which]) input.value = state[which].name; }
   });
 }
-
-async function useGps(which, { quiet = false } = {}) {
-  msg('Buscando tu ubicación…');
-  try {
-    const p = await locate();
-    setPlace(which, p);
-    if (meMarker) meMarker.remove();
-    meMarker = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize: [16, 16] }) }).addTo(map);
-    map.setView([p.lat, p.lng], 15);
-    const near = net.stops.map((s) => ({ s, d: distanceM(p, s) })).sort((a, b) => a.d - b.d)[0];
-    if (!near || near.d > 3000) msg('Estás aquí 📍. No hay rutas cargadas cerca de ti: toca el mapa para elegir a dónde vas y ábrelo en Google Maps, o agrega las líneas de tu ciudad en ✏️ Mis rutas.');
-    else msg(`Estás aquí 📍. Parada más cercana: ${near.s.name} (${formatDistance(near.d)}). Toca el mapa para elegir a dónde vas.`);
-  } catch (e) {
-    msg(quiet ? 'Toca 📍 para usar tu ubicación, o elige en el mapa de dónde sales.' : e.message);
+$('suggestions').addEventListener('pointerdown', (e) => e.preventDefault()); // que el campo no pierda el foco antes del clic
+$('suggestions').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-k]');
+  if (b) chooseSuggestion($('suggestions').items[Number(b.dataset.k)]);
+});
+document.addEventListener('pointerdown', (e) => {
+  if (activeField && !e.target.closest('#search-card')) {
+    const which = activeField;
+    closeSuggestions();
+    if (state[which]) $(`${which}-input`).value = state[which].name;
   }
+});
+
+$('swap').addEventListener('click', () => {
+  const a = state.from;
+  setPlace('from', state.to);
+  setPlace('to', a);
+  if (state.from && state.to) search();
+});
+
+// Nombres de lugares: Google si hay clave; si no, OpenStreetMap (Nominatim).
+async function geocode(text) {
+  if (state.map.provider === 'google') {
+    try {
+      const g = new window.google.maps.Geocoder();
+      const { results } = await g.geocode({ address: text, region: 'CR', componentRestrictions: { country: 'CR' } });
+      if (results[0]) {
+        const l = results[0].geometry.location;
+        return { lat: l.lat(), lng: l.lng(), name: results[0].formatted_address.replace(/, Costa Rica$/, ''), kind: 'place' };
+      }
+    } catch { /* sigue con OSM */ }
+  }
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=cr&accept-language=es&q=${encodeURIComponent(text)}`);
+    const [hit] = await res.json();
+    if (hit) return { lat: +hit.lat, lng: +hit.lon, name: hit.display_name.split(',').slice(0, 2).join(','), kind: 'place' };
+  } catch { /* sin internet */ }
+  return null;
 }
 
-/** Nombre del lugar tocado (calle, barrio) usando OpenStreetMap; si no se puede, coordenadas. */
 async function placeName(p) {
+  const near = stopsNear(state.net, p, 35)[0];
+  if (near) return near.stop.name;
+  if (state.map.provider === 'google') {
+    try {
+      const { results } = await new window.google.maps.Geocoder().geocode({ location: p });
+      if (results[0]) return results[0].formatted_address.replace(/, Costa Rica$/, '').split(',').slice(0, 2).join(',');
+    } catch { /* sigue */ }
+  }
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=18&accept-language=es&lat=${p.lat}&lon=${p.lng}`);
     const a = (await res.json()).address || {};
-    const street = [a.road || a.pedestrian || a.footway, a.house_number].filter(Boolean).join(' ');
-    const place = a.amenity || a.shop || a.building || a.tourism || '';
-    const area = a.neighbourhood || a.suburb || a.city_district || a.city || a.town || '';
-    const name = [place, street, area].filter(Boolean).slice(0, 2).join(', ');
+    const name = [a.amenity || a.shop || a.building, a.road, a.neighbourhood || a.suburb || a.city_district || a.town || a.city]
+      .filter(Boolean).slice(0, 2).join(', ');
     if (name) return name;
   } catch { /* sin internet */ }
-  return `Punto en el mapa (${p.lat.toFixed(4)}, ${p.lng.toFixed(4)})`;
+  return 'Punto en el mapa';
 }
 
-// ---------- Ver en Google Maps / Apple Maps ----------
-
-function updateExternalLinks() {
-  const { from, to } = places;
-  $('ext-links').hidden = !to;
-  if (!to) return;
-  const ll = (p) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
-  $('gmaps').href = `https://www.google.com/maps/dir/?api=1${from ? `&origin=${ll(from)}` : ''}&destination=${ll(to)}&travelmode=transit`;
-  $('amaps').href = `https://maps.apple.com/?${from ? `saddr=${ll(from)}&` : ''}daddr=${ll(to)}&dirflg=r`;
+/** Tocar el mapa: elige el destino (o el origen si todavía no hay). */
+async function onMapClick(p) {
+  if (activeField) { closeSuggestions(); return; }
+  const place = { ...p, name: 'Buscando el lugar…', kind: 'place' };
+  const which = state.from ? 'to' : 'from';
+  setPlace(which, place);
+  place.name = await placeName(p);
+  if (state[which] === place) $(`${which}-input`).value = place.name;
+  if (state.from && state.to) search();
+  else toast('Ahora elige a dónde vas: toca el mapa o escribe el destino.');
 }
 
-// ---------- Elegir en el mapa ----------
+// ---------- Planificar ----------
 
-let pickMode = null; // 'from' | 'to' | 'edit'
-
-function startPick(mode, text) {
-  pickMode = mode;
-  $('pick-text').textContent = text;
-  $('pick-banner').hidden = false;
-  $('map').scrollIntoView({ behavior: 'smooth', block: 'start' });
+function whenInfo() {
+  const { minute, weekday } = nowInfo();
+  if ($('when-mode').value === 'now') return { departAt: minute, weekday, label: 'ahora' };
+  const [h, m] = ($('when-time').value || '07:00').split(':').map(Number);
+  return { departAt: h * 60 + m, weekday: Number($('when-day').value), label: '' };
 }
 
-function endPick() {
-  pickMode = null;
-  $('pick-banner').hidden = true;
-}
-
-async function pickPoint(which, p) {
-  const near = net.stops.find((s) => distanceM(p, s) < 40);
-  if (near) {
-    setPlace(which, stopPlace(near));
-  } else {
-    const place = { ...p, name: 'Buscando nombre…' };
-    setPlace(which, place);
-    place.name = await placeName(p);
-    if (places[which] === place) $(`${which}-input`).value = place.name;
-  }
-  if (which === 'to' && places.from) search();
-}
-
-map.on('click', (e) => {
-  const p = { lat: e.latlng.lat, lng: e.latlng.lng };
-  if (pickMode === 'from' || pickMode === 'to') {
-    const was = pickMode;
-    endPick();
-    pickPoint(was, p);
-  } else if (pickMode === 'edit') {
-    addStopToDraft(p);
-  } else if (!$('tab-viajar').hidden) {
-    // Sin modo especial: tocar el mapa elige el destino.
-    pickPoint('to', p);
-  }
-});
-
-// Botón 📍 sobre el mapa.
-const LocateControl = L.Control.extend({
-  options: { position: 'topright' },
-  onAdd() {
-    const b = L.DomUtil.create('button', 'map-locate');
-    b.type = 'button';
-    b.title = 'Dónde estoy';
-    b.setAttribute('aria-label', 'Dónde estoy');
-    b.textContent = '📍';
-    L.DomEvent.disableClickPropagation(b);
-    L.DomEvent.on(b, 'click', () => useGps('from'));
-    return b;
-  },
-});
-new LocateControl().addTo(map);
-
-$('pick-cancel').addEventListener('click', endPick);
-
-// ---------- Buscar ----------
-
-let lastOptions = [];
-let selected = null;
-
-function msg(text) {
-  $('search-msg').textContent = text;
-}
-
-function departMinute() {
-  if ($('depart-mode').value === 'at') return parseClock($('depart-time').value) ?? 480;
+function initWhen() {
+  const { weekday } = nowInfo();
+  $('when-day').innerHTML = DAYS.map((d, i) => `<option value="${i}">${i === weekday ? 'Hoy' : i === (weekday + 1) % 7 ? 'Mañana' : d}</option>`).join('');
+  $('when-day').value = String(weekday);
   const d = new Date();
-  return d.getHours() * 60 + d.getMinutes();
+  $('when-time').value = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function settings() {
-  return {
-    passengers: Math.max(1, Math.min(20, Number($('passengers').value) || 1)),
-    profile: $('profile').value,
-  };
-}
+$('when-mode').addEventListener('change', () => {
+  const at = $('when-mode').value === 'at';
+  $('when-time').hidden = !at;
+  $('when-day').hidden = !at;
+  search({ keepView: true });
+});
+$('when-time').addEventListener('change', () => search({ keepView: true }));
+$('when-day').addEventListener('change', () => search({ keepView: true }));
 
-async function search() {
-  msg('Buscando…');
-  const [from, to] = await Promise.all([resolveInput('from'), resolveInput('to')]);
-  if (!from) { msg('No encontré el origen. Escribe una parada, una dirección o elígelo en el mapa.'); return; }
-  if (!to) { msg('No encontré el destino. Escribe una parada, una dirección o elígelo en el mapa.'); return; }
-  setPlace('from', from);
-  setPlace('to', to);
-  const departAt = departMinute();
-  lastOptions = planTrip(net, from, to, { departAt });
-  addRecent(from, to);
-  renderResults(departAt);
-  if (!lastOptions.length) {
-    msg('No hay buses que conecten estos puntos con tus rutas. Prueba otro punto cercano o agrega la línea en ✏️ Mis rutas.');
-    tripLayer.clearLayers();
-    drawNetwork();
-    map.fitBounds([[from.lat, from.lng], [to.lat, to.lng]], { padding: [40, 40] });
+function search({ keepView = false } = {}) {
+  if (!state.from || !state.to || state.from.lat == null) {
+    if (state.from?.kind === 'gps' && state.from.lat == null) toast('Esperando tu ubicación… o toca el mapa para elegir de dónde sales.');
     return;
   }
-  msg('');
-  selectOption(lastOptions[0]);
+  const { departAt, weekday } = whenInfo();
+  state.options = planOptions(state.net, state.from, state.to, { departAt, weekday, count: 4 });
+  addRecent();
+  renderResults(departAt);
+  if (!keepView) showView('results');
+  setSheet('half');
+  if (state.options.length) drawOptionPreview(state.options[0]);
+  else {
+    clearTrip();
+    drawStops();
+    state.map.fitBounds([[state.from.lat, state.from.lng], [state.to.lat, state.to.lng]], mapPad());
+  }
+}
+
+function drawOptionPreview(o) {
+  if (o) drawTrip(o);
+}
+
+function legChips(o) {
+  return o.legs.map((l) => (l.type === 'bus' ? badge(l.route)
+    : `<span title="Caminar">🚶 ${Math.max(1, Math.round(l.minutes))}′</span>`)).join('<span aria-hidden="true">›</span>');
+}
+
+const showFare = (o) => (state.senior ? o.seniorFare : o.fare);
+
+function gmapsUrl() {
+  const ll = (p) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+  return `https://www.google.com/maps/dir/?api=1${state.from?.lat != null ? `&origin=${ll(state.from)}` : ''}&destination=${ll(state.to)}&travelmode=transit`;
 }
 
 function renderResults(departAt) {
   const box = $('results');
-  box.innerHTML = '';
-  const { passengers, profile } = settings();
-  const factor = discountFactor(net, profile);
-  const badges = badgesFor(lastOptions);
-  for (const o of lastOptions) {
-    const card = document.createElement('article');
-    card.className = 'card option';
-    const total = o.fare * factor * passengers;
-    const chips = o.legs.map((l) => (l.type === 'bus'
-      ? `<span class="chip" style="background:${escapeHtml(l.line.color)}">${escapeHtml(l.line.name)}</span>`
-      : (l.meters > 60 ? `<span class="chip walk">🚶 ${Math.round(l.minutes)}′</span>` : ''))).filter(Boolean).join(' › ');
-    const steps = o.legs.filter((l) => l.type === 'bus' || l.meters > 30).map((l) => {
-      let extra = '';
-      if (l.type === 'bus') {
-        extra += `<span class="hint">Espera ~${Math.round(l.waitMin)} min · pasaje ${escapeHtml(formatMoney(l.fare * factor, net.currency))}</span>`;
-        if (l.notRunning) extra += `<span class="warn-text">⚠️ Puede que no esté funcionando a esa hora (${escapeHtml(l.line.firstBus)}–${escapeHtml(l.line.lastBus)}).</span>`;
-      }
-      return `<li>${escapeHtml(describeLeg(l))}${extra ? `<br>${extra}` : ''}</li>`;
-    }).join('');
-    const sub = o.buses === 0
-      ? `Caminando · ${formatDistance(o.walkM)}`
-      : `${o.transfers === 0 ? 'Directo' : `${o.transfers} transbordo${o.transfers > 1 ? 's' : ''}`} · camina ${formatDistance(o.walkM)}`;
-    card.innerHTML = `
-      <div>${badges.get(o).map((b) => `<span class="badge">${b}</span>`).join('')}</div>
-      <div class="option-head">
-        <span class="option-time">${formatDuration(o.time)}</span>
-        <span class="hint">llegas ~${formatClock(departAt + o.time)}</span>
-        <span class="option-fare">${o.buses === 0 ? 'Gratis' : escapeHtml(formatMoney(total, net.currency))}</span>
-      </div>
-      <div class="option-sub">${sub}${passengers > 1 && o.buses ? ` · ${passengers} personas` : ''}${factor < 1 && o.buses ? ' · con descuento' : ''}</div>
-      <div class="chips">${chips}</div>
-      <ol class="steps" hidden>${steps}</ol>
-      <div class="option-actions">
-        <button type="button" data-act="share">📤 Compartir</button>
-        <button type="button" data-act="fav">⭐ Guardar</button>
-      </div>`;
-    card.addEventListener('click', (e) => {
-      const act = e.target.closest('[data-act]')?.dataset.act;
-      if (act === 'share') shareOption(o, departAt);
-      else if (act === 'fav') addFav();
-      else selectOption(o);
-    });
-    o.card = card;
-    box.append(card);
+  if (!state.options.length) {
+    const outside = !stopsNear(state.net, state.from, 1500).length || !stopsNear(state.net, state.to, 1500).length;
+    box.innerHTML = `<div class="empty"><strong>${outside ? 'Esta zona todavía no tiene rutas en Ruta CR' : 'No hay buses para esa hora'}</strong>`
+      + `${outside ? 'Por ahora la app tiene las rutas de Transportes San Gabriel (San José, Desamparados, Aserrí, Acosta). ' : 'Prueba con otra hora o día. '}`
+      + 'Google Maps puede mostrarte otras opciones.</div>'
+      + `<a class="btn primary" href="${esc(gmapsUrl())}" target="_blank" rel="noopener">Ver la ruta en Google Maps</a>`;
+    return;
   }
+  const fastest = state.options.reduce((a, b) => (b.arrive < a.arrive ? b : a));
+  box.innerHTML = state.options.map((o, k) => {
+    const fb = o.firstBus;
+    const leave = o.leaveAt - departAt;
+    return `<button type="button" class="option ${o === fastest ? 'best' : ''}" data-k="${k}">
+      ${o === fastest ? '<span class="tag">Llegas primero</span>' : ''}
+      <div class="opt-top"><span class="opt-times">${formatClock(fb.depart)} → ${formatClock(o.arrive)}</span><span class="opt-dur">${formatDuration(o.arrive - o.leaveAt)}</span></div>
+      <div class="opt-legs">${legChips(o)}</div>
+      <div class="opt-bottom"><span>${leave <= 1 ? '<span class="soon">Sal ya</span>' : `Sal ${formatIn(leave)}`} · ${o.transfers ? `${o.transfers} transbordo` : 'Directo'} · caminas ${formatDistance(o.walkM)}</span>
+      <span class="opt-fare">${state.senior && o.seniorFare === 0 ? 'Gratis' : formatColones(showFare(o))}</span></div>
+    </button>`;
+  }).join('') + `<a class="btn ghost" style="width:100%" href="${esc(gmapsUrl())}" target="_blank" rel="noopener">Comparar en Google Maps</a>`;
 }
 
-function selectOption(o) {
-  selected = o;
-  for (const x of lastOptions) {
-    x.card?.classList.toggle('selected', x === o);
-    const steps = x.card?.querySelector('.steps');
-    if (steps) steps.hidden = x !== o;
-  }
+$('results').addEventListener('click', (e) => {
+  const b = e.target.closest('.option');
+  if (b) openTrip(state.options[Number(b.dataset.k)]);
+});
+
+function openTrip(o) {
+  state.selected = o;
   drawTrip(o);
-  updateMonthly();
-}
-
-function drawTrip(o) {
-  tripLayer.clearLayers();
-  const bounds = [];
-  for (const leg of o.legs) {
-    if (leg.type === 'walk') {
-      const pts = [[leg.from.lat, leg.from.lng], [leg.to.lat, leg.to.lng]];
-      L.polyline(pts, { color: '#555', weight: 4, dashArray: '2 8', opacity: 0.9 }).addTo(tripLayer);
-      bounds.push(...pts);
-      continue;
+  const { minute } = nowInfo();
+  const rows = [];
+  for (const l of o.legs) {
+    if (l.type === 'walk') {
+      rows.push(`<li><span class="t">${formatClock(l.start)}</span><span class="rail walk"><span class="node" style="--rail:var(--muted)"></span></span>`
+        + `<span class="what"><strong>Camina ${formatDistance(l.meters)}</strong><span>${formatDuration(l.minutes)} hasta ${esc(l.to.name || 'tu destino')}</span></span></li>`);
+    } else {
+      const fare = state.senior ? (l.fare || 0) * seniorFactor(l.patternKm) : l.fare;
+      rows.push(`<li style="--rail:${esc(l.route.color)}"><span class="t">${formatClock(l.depart)}</span><span class="rail"><span class="node"></span></span>`
+        + `<span class="what"><strong>${esc(l.from.name)}</strong><span>${badge(l.route)} ${esc(l.route.long)} · hacia ${esc(l.headsign)}</span>`
+        + `<span>Viajas ${l.stops} paradas (${formatDuration(l.arrive - l.depart)}) · pasaje ${fare === 0 ? 'gratis' : formatColones(fare)}</span></span></li>`);
+      rows.push(`<li><span class="t">${formatClock(l.arrive)}</span><span class="rail walk"><span class="node" style="--rail:${esc(l.route.color)}"></span></span>`
+        + `<span class="what"><strong>Bájate en ${esc(l.to.name)}</strong></span></li>`);
     }
-    const pattern = patternsOf(leg.line).find((p) => p.towards === leg.towards) || patternsOf(leg.line)[0];
-    const a = pattern.ids.indexOf(leg.from.id);
-    let ids = pattern.ids.slice(a);
-    ids = ids.slice(0, ids.indexOf(leg.to.id, 1) + 1);
-    const pts = ids.map(stopById).filter(Boolean).map((s) => [s.lat, s.lng]);
-    L.polyline(pts, { color: '#fff', weight: 10, opacity: 0.9 }).addTo(tripLayer);
-    L.polyline(pts, { color: leg.line.color, weight: 6 }).bindTooltip(leg.line.name).addTo(tripLayer);
-    for (const [i, p] of pts.entries()) {
-      const s = stopById(ids[i]);
-      const isEnd = i === 0 || i === pts.length - 1;
-      L.circleMarker(p, { radius: isEnd ? 7 : 4, color: '#fff', weight: 2, fillColor: leg.line.color, fillOpacity: 1 })
-        .bindTooltip(`${i === 0 ? 'Sube: ' : isEnd ? 'Baja: ' : ''}${s.name}`, { permanent: isEnd, direction: 'top', offset: [0, -6] })
-        .addTo(tripLayer);
-    }
-    bounds.push(...pts);
   }
-  drawNetwork();
-  if (bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
+  rows.push(`<li><span class="t">${formatClock(o.arrive)}</span><span class="rail"><span class="node" style="--rail:var(--red)"></span></span>`
+    + `<span class="what"><strong>Llegas a ${esc(state.to.name)}</strong></span></li>`);
+  const leave = o.leaveAt - minute;
+  const src = state.net.source;
+  $('trip').innerHTML = `
+    <div class="trip-sum">
+      <div><small>Sal</small><strong>${formatClock(o.leaveAt)}</strong></div>
+      <div><small>Llegas</small><strong>${formatClock(o.arrive)}</strong></div>
+      <div><small>Pasaje</small><strong class="money">${state.senior && o.seniorFare === 0 ? 'Gratis' : formatColones(showFare(o))}</strong></div>
+    </div>
+    ${$('when-mode').value === 'now' && leave > 0 && leave < 180 ? `<p class="note">Tienes que salir <strong>${formatIn(leave)}</strong> para alcanzar el bus.</p>` : ''}
+    <ol class="timeline">${rows.join('')}</ol>
+    <div class="btn-row">
+      <button type="button" class="btn primary" id="trip-share">Compartir</button>
+      <button type="button" class="btn ghost" id="trip-save">Guardar viaje</button>
+      <a class="btn ghost" href="${esc(gmapsUrl())}" target="_blank" rel="noopener">Abrir en Google Maps</a>
+    </div>
+    ${state.senior ? '<p class="note">Adulto mayor (Ley 7935): gratis en rutas de menos de 25 km, 50 % entre 25 y 50 km, 75 % en más de 50 km. Presenta la cédula o la tarjeta Ciudadano de Oro.</p>' : ''}
+    <p class="note warn">Horarios y tarifas según los datos de ${esc(src.publisher)} (${esc(src.version)}). ARESEP los actualiza: confirma el pasaje con el chofer.</p>`;
+  $('trip-share').addEventListener('click', () => share(o));
+  $('trip-save').addEventListener('click', saveFav);
+  showView('trip');
+  setSheet('half');
 }
 
-async function shareOption(o, departAt) {
-  const { passengers, profile } = settings();
-  const text = tripText(o, net, { from: places.from, to: places.to, departAt, passengers, profile });
+async function share(o) {
+  const text = tripText(o, { from: state.from, to: state.to });
   try {
-    if (navigator.share) { await navigator.share({ text }); return; }
+    if (navigator.share) { await navigator.share({ title: 'Mi viaje en bus', text }); return; }
     await navigator.clipboard.writeText(text);
-    msg('Viaje copiado. Pégalo en WhatsApp o donde quieras.');
-  } catch { /* el usuario canceló */ }
+    toast('Viaje copiado. Pégalo en WhatsApp.');
+  } catch { /* cancelado */ }
 }
 
-function updateMonthly() {
-  const box = $('monthly');
-  if (!selected || selected.buses === 0) { box.hidden = true; return; }
-  box.hidden = false;
-  const { profile } = settings();
-  const fare = selected.fare * discountFactor(net, profile);
-  const trips = Number($('m-trips').value) || 1;
-  const days = Number($('m-days').value) || 1;
-  $('m-total').textContent = formatMoney(Math.round(monthlyCost(fare, trips, days)), net.currency);
-  $('m-detail').textContent = `${formatMoney(fare, net.currency)} por viaje × ${trips} al día × ${days} días por semana. `
-    + `Por semana: ${formatMoney(fare * trips * days, net.currency)}.`;
-}
+// ---------- Guardados ----------
 
-// ---------- Guardados y recientes ----------
-
-function addRecent(from, to) {
-  recent = [{ from, to }, ...recent.filter((r) => !(r.from.name === from.name && r.to.name === to.name))].slice(0, 5);
-  save(KEY.recent, recent);
+function addRecent() {
+  const r = { from: state.from, to: state.to };
+  state.recent = [r, ...state.recent.filter((x) => !(x.to.name === r.to.name && x.from.name === r.from.name))].slice(0, 6);
+  save(KEY.recent, state.recent);
   renderSaved();
 }
 
-async function addFav() {
-  if (!places.from || !places.to) return;
-  const label = await ask('Nombre para este viaje (ej.: Casa → Trabajo):', { input: 'text', value: `${places.from.name} → ${places.to.name}`, ok: 'Guardar' });
-  if (!label) return;
-  favs = [{ label, from: places.from, to: places.to }, ...favs].slice(0, 20);
-  save(KEY.favs, favs);
+function saveFav() {
+  if (!state.from || !state.to) return;
+  if (state.favs.some((f) => f.to.name === state.to.name && f.from.name === state.from.name)) { toast('Ya está en Guardados.'); return; }
+  state.favs = [{ from: state.from, to: state.to }, ...state.favs].slice(0, 20);
+  save(KEY.favs, state.favs);
   renderSaved();
+  toast('Guardado. Lo encuentras en la pestaña Guardados.');
 }
 
 function renderSaved() {
-  const item = (r, i, kind) => `<li><button type="button" class="grow" data-${kind}="${i}">${escapeHtml(r.label || `${r.from.name} → ${r.to.name}`)}</button>`
-    + `${kind === 'fav' ? `<button type="button" class="small del" data-del-fav="${i}" aria-label="Borrar">✕</button>` : ''}</li>`;
-  $('favs').innerHTML = favs.map((r, i) => item(r, i, 'fav')).join('');
-  $('favs-empty').hidden = favs.length > 0;
-  $('recent').innerHTML = recent.map((r, i) => item(r, i, 'rec')).join('') || '<li class="hint">Todavía nada.</li>';
+  const item = (r, i, kind) => `<li><button type="button" class="row-btn" data-${kind}="${i}"><span class="s-icon">${kind === 'fav' ? '★' : ICONS.clock}</span>`
+    + `<span class="grow"><span class="name">${esc(r.to.name)}</span><span class="meta">Desde ${esc(r.from.name)}</span></span>`
+    + `${kind === 'fav' ? `<span class="chev" data-del="${i}" role="button" aria-label="Quitar">✕</span>` : '<span class="chev">›</span>'}</button></li>`;
+  $('tab-guardados').innerHTML = (state.favs.length
+    ? `<div class="h3">Guardados</div><ul class="list">${state.favs.map((r, i) => item(r, i, 'fav')).join('')}</ul>`
+    : '<div class="empty"><strong>Sin viajes guardados</strong>Busca un viaje y toca "Guardar viaje" para tenerlo a un toque.</div>')
+    + (state.recent.length ? `<div class="h3">Recientes</div><ul class="list">${state.recent.map((r, i) => item(r, i, 'rec')).join('')}</ul>` : '');
 }
 
-function runSaved(r) {
-  setPlace('from', r.from);
-  setPlace('to', r.to);
-  search();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-$('favs').addEventListener('click', (e) => {
-  const del = e.target.closest('[data-del-fav]');
+$('tab-guardados').addEventListener('click', (e) => {
+  const del = e.target.closest('[data-del]');
   if (del) {
-    favs.splice(Number(del.dataset.delFav), 1);
-    save(KEY.favs, favs);
+    e.stopPropagation();
+    state.favs.splice(Number(del.dataset.del), 1);
+    save(KEY.favs, state.favs);
     renderSaved();
     return;
   }
-  const b = e.target.closest('[data-fav]');
-  if (b) runSaved(favs[Number(b.dataset.fav)]);
-});
-
-$('recent').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-rec]');
-  if (b) runSaved(recent[Number(b.dataset.rec)]);
-});
-
-// ---------- Líneas ----------
-
-function renderLines() {
-  const q = norm($('line-filter').value);
-  const box = $('line-list');
-  const t = net.transfer || {};
-  const transferText = t.policy === 'free' ? 'Transbordo gratis' : t.policy === 'fixed'
-    ? `Transbordo: ${formatMoney(t.amount || 0, net.currency)}` : 'Cada bus se paga completo';
-  const list = net.lines.filter((l) => !q || norm(l.name).includes(q)
-    || l.stops.some((id) => norm(stopById(id)?.name || '').includes(q)));
-  box.innerHTML = list.length ? '' : '<p class="hint">No hay líneas que coincidan. Agrégalas en ✏️ Mis rutas.</p>';
-  for (const l of list) {
-    const card = document.createElement('article');
-    card.className = 'card line-card option';
-    const names = l.stops.map((id) => stopById(id)?.name || '?');
-    card.innerHTML = `
-      <h3><span class="swatch" style="background:${escapeHtml(l.color)}"></span>${escapeHtml(l.name)}</h3>
-      <div class="hint">${escapeHtml(l.start || names[0])} ⇄ ${escapeHtml(l.circular ? '(circular)' : l.end || names.at(-1))}</div>
-      <div class="line-meta">
-        <span>Pasaje <strong>${escapeHtml(formatMoney(l.fare, net.currency))}</strong></span>
-        <span>Pasa cada <strong>${l.headwayMin || 10} min</strong></span>
-        <span>Horario <strong>${escapeHtml(l.firstBus || '?')}–${escapeHtml(l.lastBus || '?')}</strong></span>
-        <span><strong>${l.stops.length}</strong> paradas</span>
-      </div>
-      <p class="line-stops">${names.map(escapeHtml).join(' · ')}</p>`;
-    card.addEventListener('click', () => showLineOnMap(l.id));
-    box.append(card);
-  }
-  const note = document.createElement('p');
-  note.className = 'hint';
-  note.textContent = `${transferText}${t.windowMin ? ` (dentro de ${t.windowMin} min)` : ''}. Descuentos: estudiante ${net.discounts?.estudiante || 0}%, adulto mayor ${net.discounts?.mayor || 0}%.`;
-  box.append(note);
-}
-
-function showLineOnMap(id) {
-  tripLayer.clearLayers();
-  drawNetwork(id);
-  const line = net.lines.find((l) => l.id === id);
-  const pts = line.stops.map(stopById).filter(Boolean).map((s) => [s.lat, s.lng]);
-  if (pts.length) map.fitBounds(pts, { padding: [30, 30] });
-  $('map').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-$('line-filter').addEventListener('input', renderLines);
-
-// ---------- Editor ----------
-
-let draft = null; // línea que se está editando
-
-function renderEditor() {
-  $('e-net-name').value = net.name || '';
-  $('e-currency').value = net.currency || '$';
-  const t = net.transfer || { policy: 'full' };
-  $('e-transfer').value = t.policy;
-  $('e-transfer-amount').value = t.amount ?? '';
-  $('e-transfer-window').value = t.windowMin ?? '';
-  $('e-disc-est').value = net.discounts?.estudiante ?? 0;
-  $('e-disc-may').value = net.discounts?.mayor ?? 0;
-  syncTransferFields();
-  $('e-lines').innerHTML = net.lines.map((l, i) => `<li><span class="swatch" style="background:${escapeHtml(l.color)}"></span>`
-    + `<button type="button" class="grow" data-edit="${i}">${escapeHtml(l.name)} <small class="hint">· ${escapeHtml(formatMoney(l.fare, net.currency))} · ${l.stops.length} paradas</small></button>`
-    + `<button type="button" class="small del" data-del="${i}" aria-label="Borrar ${escapeHtml(l.name)}">✕</button></li>`).join('')
-    || '<li class="hint">Todavía no hay líneas.</li>';
-}
-
-function syncTransferFields() {
-  const p = $('e-transfer').value;
-  $('e-transfer-amount-wrap').hidden = p !== 'fixed';
-  $('e-transfer-window-wrap').hidden = p === 'full';
-}
-
-function saveSettings() {
-  net.name = $('e-net-name').value.trim() || 'Mi ciudad';
-  net.currency = $('e-currency').value.trim() || '$';
-  const amount = Number($('e-transfer-amount').value);
-  const windowMin = $('e-transfer-window').value === '' ? null : Number($('e-transfer-window').value);
-  net.transfer = { policy: $('e-transfer').value, amount: Number.isFinite(amount) ? amount : 0, windowMin };
-  net.discounts = { estudiante: Number($('e-disc-est').value) || 0, mayor: Number($('e-disc-may').value) || 0 };
-  syncTransferFields();
-  saveNet();
-}
-
-for (const id of ['e-net-name', 'e-currency', 'e-transfer', 'e-transfer-amount', 'e-transfer-window', 'e-disc-est', 'e-disc-may']) {
-  $(id).addEventListener('change', saveSettings);
-}
-
-$('e-center').addEventListener('click', () => {
-  const c = map.getCenter();
-  net.center = [c.lat, c.lng];
-  net.zoom = map.getZoom();
-  saveNet();
-  $('e-io-msg').textContent = 'Listo: el mapa abrirá aquí.';
-});
-
-function openLineForm(line) {
-  draft = line ? clone(line) : {
-    id: newId('l'), name: '', color: randomColor(), fare: '', headwayMin: 10, speedKmh: 18,
-    firstBus: '05:30', lastBus: '22:00', stops: [], circular: false, oneWay: false, isNew: true,
-  };
-  draft.newStops = [];
-  $('e-line-title').textContent = line ? `Editar ${line.name}` : 'Nueva línea';
-  $('e-name').value = draft.name;
-  $('e-color').value = draft.color;
-  $('e-fare').value = draft.fare;
-  $('e-headway').value = draft.headwayMin;
-  $('e-speed').value = draft.speedKmh;
-  $('e-first').value = draft.firstBus || '';
-  $('e-last').value = draft.lastBus || '';
-  $('e-circular').checked = !!draft.circular;
-  $('e-oneway').checked = !!draft.oneWay;
-  $('e-line-msg').textContent = '';
-  $('e-line-form').hidden = false;
-  renderDraftStops();
-  $('e-line-form').scrollIntoView({ behavior: 'smooth' });
-}
-
-function randomColor() {
-  const colors = ['#e63946', '#1d6fdc', '#2a9d8f', '#f4a261', '#8e44ad', '#16a085', '#d35400', '#c0392b', '#2c3e50', '#e84393'];
-  return colors[net.lines.length % colors.length];
-}
-
-function draftStop(id) {
-  return draft.newStops.find((s) => s.id === id) || stopById(id);
-}
-
-function renderDraftStops() {
-  $('e-stops').innerHTML = draft.stops.map((id, i) => `<li><span>${escapeHtml(draftStop(id)?.name || '?')}</span>`
-    + `<button type="button" data-up="${i}" aria-label="Subir">↑</button>`
-    + `<button type="button" data-down="${i}" aria-label="Bajar">↓</button>`
-    + `<button type="button" class="del" data-rm="${i}" aria-label="Quitar">✕</button></li>`).join('');
-  editLayer.clearLayers();
-  const pts = draft.stops.map(draftStop).filter(Boolean).map((s) => [s.lat, s.lng]);
-  if (pts.length) {
-    L.polyline(pts, { color: $('e-color').value, weight: 5, dashArray: '6 6' }).addTo(editLayer);
-    pts.forEach((p, i) => L.circleMarker(p, { radius: 7, color: '#fff', weight: 2, fillColor: $('e-color').value, fillOpacity: 1 })
-      .bindTooltip(String(i + 1), { permanent: true, direction: 'center', className: '' }).addTo(editLayer));
-  }
-}
-
-async function addStopToDraft(p) {
-  if (!draft) return;
-  const all = [...net.stops, ...draft.newStops];
-  const near = all.map((s) => ({ s, d: distanceM(p, s) })).filter((x) => x.d < 60).sort((a, b) => a.d - b.d)[0];
-  let stop = near?.s;
-  if (!stop) {
-    const name = await ask('Nombre de esta parada:', { input: 'text', value: `Parada ${all.length + 1}`, ok: 'Agregar' });
-    if (!name || !draft) return;
-    stop = { id: newId('s'), name: name.trim(), lat: +p.lat.toFixed(6), lng: +p.lng.toFixed(6) };
-    draft.newStops.push(stop);
-  }
-  draft.stops.push(stop.id);
-  renderDraftStops();
-  $('pick-text').textContent = `${draft.stops.length} paradas. Sigue tocando el mapa, o toca Listo.`;
-}
-
-$('e-stops').addEventListener('click', (e) => {
-  const b = e.target.closest('button');
+  const b = e.target.closest('[data-fav],[data-rec]');
   if (!b) return;
-  const s = draft.stops;
-  if (b.dataset.rm != null) s.splice(Number(b.dataset.rm), 1);
-  if (b.dataset.up != null) { const i = Number(b.dataset.up); if (i > 0) [s[i - 1], s[i]] = [s[i], s[i - 1]]; }
-  if (b.dataset.down != null) { const i = Number(b.dataset.down); if (i < s.length - 1) [s[i + 1], s[i]] = [s[i], s[i + 1]]; }
-  renderDraftStops();
+  const r = b.dataset.fav != null ? state.favs[Number(b.dataset.fav)] : state.recent[Number(b.dataset.rec)];
+  const from = r.from.kind === 'gps' && state.me ? { ...state.me, name: 'Tu ubicación', kind: 'gps' } : r.from;
+  setPlace('from', from);
+  setPlace('to', r.to);
+  search();
 });
 
-$('e-color').addEventListener('input', () => draft && renderDraftStops());
-$('e-new-line').addEventListener('click', () => openLineForm(null));
-$('e-add-stops').addEventListener('click', () => startPick('edit', 'Toca el mapa en cada parada, en orden.'));
+// ---------- Cerca de ti ----------
 
-$('e-lines').addEventListener('click', async (e) => {
-  const edit = e.target.closest('[data-edit]');
-  if (edit) { openLineForm(net.lines[Number(edit.dataset.edit)]); return; }
-  const del = e.target.closest('[data-del]');
-  if (del) {
-    const line = net.lines[Number(del.dataset.del)];
-    if (!await ask(`¿Borrar ${line.name}?`, { ok: 'Borrar', danger: true })) return;
-    net.lines.splice(net.lines.indexOf(line), 1);
-    pruneStops();
-    saveNet();
+function renderNearby() {
+  const center = state.me || (() => { const c = state.map.getCenter(); return { lat: c[0], lng: c[1] }; })();
+  const near = stopsNear(state.net, center, state.me ? 1500 : 4000).slice(0, 6);
+  const { minute, weekday } = nowInfo();
+  $('home-sub').textContent = state.me ? 'Paradas cerca de ti y el próximo bus.' : 'Toca el mapa o escribe a dónde vas.';
+  if (!near.length) {
+    $('tab-cerca').innerHTML = '<div class="empty"><strong>No hay paradas cargadas cerca</strong>'
+      + 'Ruta CR tiene por ahora las rutas de Transportes San Gabriel (sur de San José). Mira la pestaña Rutas o busca tu destino para verlo en Google Maps.</div>';
+    return;
   }
-});
-
-function closeLineForm() {
-  draft = null;
-  $('e-line-form').hidden = true;
-  editLayer.clearLayers();
-  endPick();
+  $('tab-cerca').innerHTML = `<ul class="list">${near.map(({ stop, i, meters }) => {
+    const next = nextDepartures(state.net, i, { now: minute, weekday, limit: 2 });
+    const when = next.length ? next.map((d) => `<span class="dep">${badge(d.route)} <span class="dep-time">${formatClock(d.time)}</span></span>`).join('') : '<span class="meta">Sin más buses hoy</span>';
+    return `<li><button type="button" class="row-btn" data-stop="${i}"><span class="stop-sign">${stopSvg(34)}</span>`
+      + `<span class="grow"><span class="name">${esc(stop.name)}</span><span class="meta">${state.me ? `${formatDistance(meters)} · ` : ''}próximo bus</span><span class="badges">${when}</span></span><span class="chev">›</span></button></li>`;
+  }).join('')}</ul>`;
 }
 
-$('e-cancel-line').addEventListener('click', closeLineForm);
-
-$('e-save-line').addEventListener('click', () => {
-  const name = $('e-name').value.trim();
-  const fare = Number($('e-fare').value);
-  const err = !name ? 'Ponle un nombre a la línea.'
-    : !($('e-fare').value !== '' && fare >= 0) ? 'Escribe cuánto cuesta el pasaje.'
-      : draft.stops.length < 2 ? 'Agrega al menos 2 paradas tocando el mapa.' : '';
-  if (err) { $('e-line-msg').textContent = err; return; }
-  const used = new Set(draft.stops);
-  net.stops.push(...draft.newStops.filter((s) => used.has(s.id)));
-  const names = draft.stops.map((id) => stopById(id).name);
-  const line = {
-    id: draft.id, name, color: $('e-color').value, fare,
-    headwayMin: Math.max(1, Number($('e-headway').value) || 10),
-    speedKmh: Math.max(5, Number($('e-speed').value) || 18),
-    firstBus: $('e-first').value, lastBus: $('e-last').value,
-    circular: $('e-circular').checked, oneWay: $('e-oneway').checked,
-    start: names[0], end: names.at(-1), stops: [...draft.stops],
-  };
-  const i = net.lines.findIndex((l) => l.id === line.id);
-  if (i >= 0) net.lines[i] = line; else net.lines.push(line);
-  pruneStops();
-  closeLineForm();
-  saveNet();
+$('tab-cerca').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-stop]');
+  if (b) openStop(Number(b.dataset.stop));
 });
 
-/** Borra paradas que ya no usa ninguna línea. */
-function pruneStops() {
-  const used = new Set(net.lines.flatMap((l) => l.stops));
-  net.stops = net.stops.filter((s) => used.has(s.id));
+// ---------- Parada ----------
+
+function openStop(i) {
+  const s = state.net.stops[i];
+  const { minute, weekday } = nowInfo();
+  const deps = nextDepartures(state.net, i, { now: minute, weekday, limit: 8 });
+  const routes = routesAtStop(state.net, i);
+  $('stop').innerHTML = `
+    <div class="route-head"><span class="stop-sign">${stopSvg(40)}</span><div><strong style="font-size:18px">${esc(s.name)}</strong>
+      <div class="badges">${routes.map(badge).join('')}</div></div></div>
+    <div class="btn-row">
+      <button type="button" class="btn primary" id="stop-to">Ir aquí</button>
+      <button type="button" class="btn ghost" id="stop-from">Salir desde aquí</button>
+    </div>
+    <div class="h3">Próximos buses</div>
+    ${deps.length ? `<ul class="list">${deps.map((d) => `<li><div class="row-btn">${badge(d.route)}<span class="grow"><span class="name">Hacia ${esc(d.headsign)}</span>`
+      + `<span class="meta">${esc(d.route.long)}</span></span><span style="text-align:right"><span class="dep-time">${formatClock(d.time)}</span>`
+      + `<span class="meta ${d.time - minute <= 10 ? 'soon' : ''}">${formatIn(d.time - minute)}</span></span></div></li>`).join('')}</ul>`
+    : '<div class="empty">No hay más buses hoy en esta parada.</div>'}`;
+  $('stop-to').addEventListener('click', () => { setPlace('to', { lat: s.lat, lng: s.lng, name: s.name, kind: 'stop' }); if (state.from) search(); else toast('Elige de dónde sales.'); });
+  $('stop-from').addEventListener('click', () => { setPlace('from', { lat: s.lat, lng: s.lng, name: s.name, kind: 'stop' }); if (state.to) search(); else $('to-input').focus(); });
+  showView('stop');
+  setSheet('half');
+  focusPoint(s, 0.0015);
 }
 
-$('e-export').addEventListener('click', () => {
-  const data = { ...net };
-  delete data.example;
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `mis-buses-${norm(net.name || 'rutas').replace(/[^a-z0-9]+/g, '-')}.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-});
+// ---------- Rutas ----------
 
-function importText(text) {
-  try {
-    const data = JSON.parse(text);
-    const errors = validateNetwork(data);
-    if (errors.length) { $('e-io-msg').textContent = `No se pudo importar: ${errors.slice(0, 3).join(' ')}`; return; }
-    net = data;
-    saveNet();
-    fitNetwork();
-    $('e-io-msg').textContent = `Importadas ${net.lines.length} líneas y ${net.stops.length} paradas.`;
-  } catch {
-    $('e-io-msg').textContent = 'Ese texto no son rutas de Mis Buses.';
-  }
+function renderRoutes() {
+  const r = state.net.routes;
+  $('tab-rutas').innerHTML = `<ul class="list">${r.map((x) => {
+    const prices = Object.values(state.net.fares[x.id] || {});
+    const range = prices.length ? `${formatColones(Math.min(...prices))} – ${formatColones(Math.max(...prices))}` : '';
+    return `<li><button type="button" class="row-btn" data-route="${esc(x.id)}">${badge(x)}<span class="grow"><span class="name">${esc(x.long)}</span>`
+      + `<span class="meta">${esc(range)}</span></span><span class="chev">›</span></button></li>`;
+  }).join('')}</ul><p class="small">Operadas por ${esc(state.net.agencies.map((a) => a.name).join(', '))}.</p>`;
 }
 
-$('e-import').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (file) importText(await file.text());
+$('tab-rutas').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-route]');
+  if (b) openRoute(b.dataset.route);
 });
 
-function exportText() {
-  const data = { ...net };
-  delete data.example;
-  return JSON.stringify(data);
+function openRoute(id, weekday = nowInfo().weekday) {
+  const r = state.net.routes.find((x) => x.id === id);
+  const agency = state.net.agencies.find((a) => a.id === r.agency);
+  const prices = [...new Set(Object.values(state.net.fares[id] || {}))].sort((a, b) => a - b);
+  const names = ['Mínima', 'Media', 'Completa'];
+  const tt = routeTimetable(state.net, id, weekday);
+  const { minute, weekday: today } = nowInfo();
+  const isToday = weekday === today;
+  $('route').innerHTML = `
+    <div class="route-head">${badge(r)}<strong style="font-size:18px">${esc(r.long)}</strong></div>
+    <p class="small">${esc(r.desc)}</p>
+    <div class="fare-grid">${prices.map((p, k) => `<div><small>${prices.length === 3 ? names[k] : `Tarifa ${k + 1}`}</small><strong>${formatColones(p)}</strong></div>`).join('')}</div>
+    <div class="when"><select id="route-day" aria-label="Día">${DAYS.map((d, i) => `<option value="${i}" ${i === weekday ? 'selected' : ''}>${i === today ? 'Hoy' : d}</option>`).join('')}</select></div>
+    ${Object.entries(tt).map(([label, times]) => {
+      const next = isToday ? times.find((t) => t >= minute) : null;
+      return `<div class="h3">${esc(label)}</div><div class="times">${times.map((t) => `<span class="${isToday && t < minute ? 'past' : ''} ${t === next ? 'next' : ''}">${formatClock(t)}</span>`).join('') || '<span>Sin servicio</span>'}</div>`;
+    }).join('') || '<div class="empty">Sin servicio ese día.</div>'}
+    ${agency ? `<p class="small">${esc(agency.name)}${agency.phone ? ` · Tel. ${esc(agency.phone)}` : ''}${agency.url ? ` · <a href="${esc(agency.url)}" target="_blank" rel="noopener">Sitio web</a>` : ''}</p>` : ''}
+    <p class="note warn">Horarios de salida desde la terminal. Tarifas según los datos de ${esc(state.net.source.version)}; confirma con la empresa.</p>`;
+  $('route-day').addEventListener('change', (e) => openRoute(id, Number(e.target.value)));
+  if (document.querySelector('#view-route').hidden) { drawRoute(id); showView('route'); setSheet('half'); }
 }
 
-$('e-copy').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(exportText());
-    $('e-io-msg').textContent = 'Rutas copiadas. Pégalas en un mensaje para compartirlas o guardarlas.';
-  } catch {
-    await ask('Copia este texto (mantén presionado → Seleccionar todo → Copiar):', { input: 'area', value: exportText(), ok: 'Listo' });
-  }
-});
+// ---------- Pestañas, capas y ajustes ----------
 
-$('e-paste').addEventListener('click', async () => {
-  const text = await ask('Pega aquí las rutas que te compartieron:', { input: 'area', ok: 'Importar' });
-  if (text) importText(text);
-});
-
-$('e-clear').addEventListener('click', async () => {
-  if (!await ask('¿Borrar todas las líneas y paradas? Copia o descarga un respaldo antes si las quieres guardar.', { ok: 'Borrar todo', danger: true })) return;
-  const c = map.getCenter();
-  net = {
-    name: 'Mi ciudad', currency: net.currency || '$', center: [c.lat, c.lng], zoom: map.getZoom(),
-    transfer: { policy: 'full', amount: 0, windowMin: null }, discounts: { estudiante: 0, mayor: 0 }, stops: [], lines: [],
-  };
-  saveNet();
-});
-
-$('e-example').addEventListener('click', async () => {
-  if (!await ask('¿Reemplazar tus rutas por la red de ejemplo?', { ok: 'Reemplazar', danger: true })) return;
-  net = clone(EXAMPLE_NETWORK);
-  try { localStorage.removeItem(KEY.net); } catch { /* nada */ }
-  refreshAll();
-  fitNetwork();
-});
-
-// ---------- Pestañas y arranque ----------
-
-function showTab(name) {
-  for (const b of document.querySelectorAll('.tabs button')) b.classList.toggle('active', b.dataset.tab === name);
-  for (const t of ['viajar', 'lineas', 'editar']) $(`tab-${t}`).hidden = t !== name;
-  if (name !== 'editar' && pickMode === 'edit') endPick();
-  if (name === 'lineas') renderLines();
+for (const b of document.querySelectorAll('.segmented button')) {
+  b.addEventListener('click', () => {
+    for (const x of document.querySelectorAll('.segmented button')) x.classList.toggle('active', x === b);
+    for (const t of ['cerca', 'rutas', 'guardados']) $(`tab-${t}`).hidden = t !== b.dataset.tab;
+  });
 }
 
-for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => showTab(b.dataset.tab));
+function applyMapType() {
+  state.map.setType(state.mapType);
+  $('layers').classList.toggle('active', state.mapType === 'satellite');
+  $('layers').setAttribute('aria-label', state.mapType === 'satellite' ? 'Ver mapa' : 'Ver satélite');
+}
 
-function refreshAll() {
-  $('net-name').textContent = net.name || '';
-  $('example-note').hidden = !net.example;
-  refreshStopList();
-  tripLayer.clearLayers();
-  $('results').innerHTML = '';
-  $('monthly').hidden = true;
-  lastOptions = [];
-  selected = null;
-  drawNetwork();
-  renderEditor();
-  renderLines();
+$('layers').addEventListener('click', () => {
+  state.mapType = state.mapType === 'satellite' ? 'roadmap' : 'satellite';
+  save(KEY.type, state.mapType);
+  applyMapType();
+  toast(state.mapType === 'satellite' ? 'Vista satélite' : 'Vista de mapa', 1200);
+});
+
+function googleKey() {
+  return load(KEY.gkey, '') || GOOGLE_MAPS_API_KEY || '';
+}
+
+function openSettings() {
+  $('set-senior').checked = state.senior;
+  $('set-key').value = load(KEY.gkey, '');
+  $('map-status').textContent = state.map.provider === 'google'
+    ? 'Usando Google Maps.'
+    : 'Ahora se usa un mapa gratuito (OpenStreetMap / Esri). Con una clave de Google se ve el mapa de Google.';
+  const s = state.net.source;
+  $('data-info').innerHTML = `Rutas, paradas, horarios y tarifas de ${esc(state.net.agencies.map((a) => a.name).join(', '))}, en formato GTFS publicado por `
+    + `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.publisher)}</a> (Universidad de Costa Rica), versión ${esc(s.version)}. `
+    + 'Las tarifas las fija ARESEP y pueden haber cambiado desde entonces.';
+  $('settings').hidden = false;
+}
+
+$('open-settings').addEventListener('click', openSettings);
+$('settings').addEventListener('click', (e) => { if (e.target === $('settings') || e.target.closest('[data-close]')) $('settings').hidden = true; });
+$('set-senior').addEventListener('change', () => {
+  state.senior = $('set-senior').checked;
+  save(KEY.senior, state.senior);
+  if (state.options.length) renderResults(whenInfo().departAt);
+  if (state.selected && !$('view-trip').hidden) openTrip(state.selected);
+});
+$('settings-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  save(KEY.gkey, $('set-key').value.trim());
+  location.reload();
+});
+$('set-key-clear').addEventListener('click', () => { save(KEY.gkey, ''); location.reload(); });
+
+// ---------- Arranque ----------
+
+async function start() {
+  state.net = await (await fetch('data/cr-network.json')).json();
+  state.map = await createMap($('map'), {
+    key: googleKey(),
+    center: CENTER,
+    zoom: 12,
+    onClick: onMapClick,
+    onZoom: () => { if (!layers.trip.length && !layers.route.length) drawStops(); },
+    onFallback: (msg) => toast(`${msg} Se usa el mapa gratuito.`, 6000),
+  });
+  applyMapType();
+  setSheet('half');
+  initWhen();
+  drawStops();
+  renderRoutes();
   renderSaved();
+  renderNearby();
+  // Al abrir, pedir la ubicación para saber de dónde sales.
+  setPlace('from', { name: 'Tu ubicación', kind: 'gps' });
+  locate({ quiet: true });
+  window.rutaCR = { state, search, openStop, openRoute };
 }
 
-$('from-gps').addEventListener('click', () => useGps('from'));
-$('to-gps').addEventListener('click', () => useGps('to'));
-$('from-map').addEventListener('click', () => startPick('from', 'Toca el mapa donde sales (A).'));
-$('to-map').addEventListener('click', () => startPick('to', 'Toca el mapa a donde vas (B).'));
-$('swap').addEventListener('click', () => {
-  const a = places.from;
-  const aText = $('from-input').value;
-  const bText = $('to-input').value;
-  setPlace('from', places.to);
-  setPlace('to', a);
-  $('from-input').value = bText;
-  $('to-input').value = aText;
-});
-for (const w of ['from', 'to']) {
-  $(`${w}-input`).addEventListener('change', () => {
-    if (places[w] && places[w].name !== $(`${w}-input`).value) places[w] = null;
-  });
-  $(`${w}-input`).addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
-}
-$('search').addEventListener('click', search);
-$('depart-mode').addEventListener('change', () => { $('depart-time-wrap').hidden = $('depart-mode').value !== 'at'; });
-for (const id of ['passengers', 'profile']) {
-  $(id).addEventListener('change', () => {
-    if (!lastOptions.length) return;
-    const sel = selected;
-    renderResults(departMinute());
-    selectOption(sel && lastOptions.includes(sel) ? sel : lastOptions[0]);
-  });
-}
-for (const id of ['m-trips', 'm-days']) $(id).addEventListener('input', updateMonthly);
-
-refreshAll();
-if (!load(KEY.net, null)?.center) fitNetwork();
-// Al abrir, pedir permiso de ubicación para saber de dónde sales.
-useGps('from', { quiet: true });
-
-// Para las pruebas automáticas.
-window.misBuses = { get net() { return net; }, get options() { return lastOptions; }, map };
+start();
