@@ -112,3 +112,76 @@ test('texto para compartir', () => {
   assert.match(text, / - San José en /);
   assert.match(text, /₡\d/);
 });
+
+// ---------- OpenStreetMap ----------
+
+import { convertOsm, chainWays, parseInterval, parseCharge, parseHours } from '../tools/osm-to-network.mjs';
+import { mergeNetworks, departuresOf } from '../buses-core.js';
+
+const OSM_ROUTES = {
+  elements: [{
+    type: 'relation', id: 101,
+    tags: { type: 'route', route: 'bus', ref: '300', name: 'Bus 300: Heredia → San José', from: 'Heredia', to: 'San José', operator: 'Empresa X', charge: '₡ 650', interval: '00:15' },
+    members: [
+      { type: 'node', ref: 1, role: 'platform', lat: 9.998, lon: -84.117 },
+      { type: 'node', ref: 2, role: 'platform', lat: 9.97, lon: -84.1 },
+      { type: 'node', ref: 3, role: 'platform', lat: 9.935, lon: -84.08 },
+      { type: 'way', ref: 11, role: '', geometry: [{ lat: 9.97, lon: -84.1 }, { lat: 9.998, lon: -84.117 }] },
+      { type: 'way', ref: 12, role: '', geometry: [{ lat: 9.97, lon: -84.1 }, { lat: 9.935, lon: -84.08 }] },
+    ],
+  }, {
+    type: 'relation', id: 102,
+    tags: { type: 'route', route: 'bus', ref: '400', name: 'Ruta sin paradas' },
+    members: [{ type: 'way', ref: 21, role: '', geometry: [{ lat: 10.0, lon: -84.2 }, { lat: 10.03, lon: -84.2 }] }],
+  }],
+};
+const OSM_STOPS = { elements: [{ type: 'node', id: 1, lat: 9.998, lon: -84.117, tags: { highway: 'bus_stop', name: 'Parque de Heredia', shelter: 'yes' } }] };
+
+test('convertir rutas de OpenStreetMap', () => {
+  const net = convertOsm(OSM_ROUTES, OSM_STOPS);
+  assert.equal(net.routes.length, 2);
+  const r = net.routes.find((x) => x.short === '300');
+  assert.equal(r.fare, 650);
+  const p = net.patterns.find((x) => x.route === r.id);
+  assert.equal(p.stops.length, 3);
+  assert.equal(net.stops[p.stops[0]].name, 'Parque de Heredia');
+  assert.equal(p.freq.headway, 15);
+  assert.equal(p.freq.estimated, false);
+  assert.ok(p.dist.at(-1) > 6 && p.dist.at(-1) < 10, String(p.dist.at(-1)));
+  assert.ok(p.offsets.every((o, i) => i === 0 || o >= p.offsets[i - 1]));
+  const sinParadas = net.patterns.find((x) => x.route !== r.id);
+  assert.ok(sinParadas.stops.length >= 3, 'genera puntos sobre la ruta');
+  assert.ok(net.stops[sinParadas.stops[0]].virtual);
+  assert.equal(sinParadas.freq.estimated, true);
+});
+
+test('unir el tramo invertido de una ruta', () => {
+  const line = chainWays([[[0, 0], [0, 1]], [[0, 2], [0, 1]]]);
+  assert.deepEqual(line, [[0, 0], [0, 1], [0, 2]]);
+});
+
+test('etiquetas de OpenStreetMap', () => {
+  assert.equal(parseInterval('00:20'), 20);
+  assert.equal(parseInterval('15-25'), 20);
+  assert.equal(parseInterval('PT1H'), 60);
+  assert.equal(parseCharge('CRC 1.085'), 1085);
+  assert.equal(parseCharge('₡650'), 650);
+  assert.equal(parseCharge('gratis'), null);
+  assert.deepEqual(parseHours('Mo-Su 04:30-23:00'), { first: 270, last: 1380 });
+});
+
+test('planificar con rutas oficiales y de OpenStreetMap juntas', () => {
+  const all = mergeNetworks(NET, convertOsm(OSM_ROUTES, OSM_STOPS));
+  assert.equal(all.routes.length, NET.routes.length + 2);
+  const heredia = all.stops.find((s) => s.name === 'Parque de Heredia');
+  const p = all.patterns.find((x) => x.freq && !x.freq.estimated);
+  assert.equal(departuresOf(p, []).length, Math.floor((21 * 60 - 5 * 60) / 15) + 1);
+  const end = all.stops[p.stops.at(-1)];
+  const o = planTrip(all, heredia, end, { departAt: 8 * 60, weekday: MONDAY })[0];
+  assert.ok(o, 'encuentra el viaje en la ruta 300');
+  assert.equal(o.fare, 650);
+  assert.ok(o.estimated);
+  // Las rutas oficiales siguen igual después de unir.
+  const sg = planTrip(all, stop('Terminal Los Mangos'), stop(SJ), { departAt: 6 * 60, weekday: MONDAY })[0];
+  assert.ok(sg && !sg.estimated);
+});

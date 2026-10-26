@@ -2,7 +2,7 @@
 // La lógica de rutas está en buses-core.js y el mapa en buses-map.js.
 
 import {
-  planOptions, nextDepartures, routesAtStop, routeTimetable, stopsNear, distanceM, seniorFactor,
+  mergeNetworks, planOptions, nextDepartures, routesAtStop, routeTimetable, stopsNear, distanceM, seniorFactor,
   formatClock, formatDuration, formatDistance, formatColones, formatIn, tripText,
 } from './buses-core.js';
 import { createMap, STYLES, stopSvg, stopDotSvg, pinSvg, meSvg } from './buses-map.js';
@@ -133,20 +133,49 @@ function focusPoint(p, d = 0.0025) {
 
 function clearLayer(list) { list.splice(0).forEach((x) => x.remove()); }
 
-function drawStops(highlight = null) {
+// Paradas en el mapa: solo las que se ven en pantalla (puede haber miles en el país).
+const shownStops = new Map(); // índice de parada → marcador
+const MAX_STOP_MARKERS = 350;
+
+function drawStops() {
   const z = state.map.getZoom();
   const mode = z >= 15 ? 'sign' : z >= 13 ? 'dot' : 'none';
-  if (mode === stopMode && !highlight) return;
-  stopMode = mode;
-  clearLayer(layers.stops);
-  if (mode === 'none' || layers.trip.length) return;
+  if (mode !== stopMode) {
+    for (const m of shownStops.values()) m.remove();
+    shownStops.clear();
+    stopMode = mode;
+  }
+  if (mode === 'none' || layers.trip.length || layers.route.length) {
+    for (const m of shownStops.values()) m.remove();
+    shownStops.clear();
+    return;
+  }
+  const b = state.map.getBounds();
+  if (!b) return;
+  const padLat = (b.n - b.s) * 0.15;
+  const padLng = (b.e - b.w) * 0.15;
+  const want = new Set();
   state.net.stops.forEach((s, i) => {
-    const big = mode === 'sign';
-    layers.stops.push(state.map.addMarker([s.lat, s.lng], {
+    if (s.virtual || want.size >= MAX_STOP_MARKERS) return;
+    if (s.lat < b.s - padLat || s.lat > b.n + padLat || s.lng < b.w - padLng || s.lng > b.e + padLng) return;
+    want.add(i);
+  });
+  for (const [i, m] of shownStops) if (!want.has(i)) { m.remove(); shownStops.delete(i); }
+  const big = mode === 'sign';
+  for (const i of want) {
+    if (shownStops.has(i)) continue;
+    const s = state.net.stops[i];
+    shownStops.set(i, state.map.addMarker([s.lat, s.lng], {
       svg: big ? stopSvg(28) : stopDotSvg(), size: big ? [28, 28] : [12, 12], anchor: big ? [14, 14] : [6, 6],
       z: 5, title: s.name, onClick: () => openStop(i),
     }));
-  });
+  }
+}
+
+let moveTimer;
+function onMapMove() {
+  clearTimeout(moveTimer);
+  moveTimer = setTimeout(drawStops, 120);
 }
 
 function setPin(which, place) {
@@ -167,13 +196,13 @@ function setMe(p) {
 function clearTrip() {
   clearLayer(layers.trip);
   clearLayer(layers.route);
-  stopMode = '';
 }
 
 /** Dibuja un viaje: buses con el color de su ruta, caminatas punteadas y las paradas de subida/bajada. */
 function drawTrip(o, { fit = true } = {}) {
   clearTrip();
-  clearLayer(layers.stops);
+  layers.trip.push({ remove() {} }); // marca que hay un viaje dibujado
+  drawStops();
   const pts = [];
   for (const l of o.legs) {
     if (l.type === 'walk') {
@@ -217,7 +246,8 @@ function sliceShape(p, a, b) {
 function drawRoute(routeId, { fit = true } = {}) {
   state.routeId = routeId;
   clearTrip();
-  clearLayer(layers.stops);
+  layers.route.push({ remove() {} });
+  drawStops();
   const pts = [];
   const seen = new Set();
   for (const p of state.net.patterns.filter((x) => x.route === routeId)) {
@@ -469,6 +499,9 @@ function legChips(o) {
 }
 
 const showFare = (o) => (state.senior ? o.seniorFare : o.fare);
+const fareText = (o) => (o.fareKnown === false ? (o.fare ? `desde ${formatColones(showFare(o))}` : 'Consultar')
+  : state.senior && o.seniorFare === 0 ? 'Gratis' : formatColones(showFare(o)));
+const approx = (estimated) => (estimated ? '~' : '');
 
 function gmapsUrl() {
   const ll = (p) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
@@ -480,7 +513,7 @@ function renderResults(departAt) {
   if (!state.options.length) {
     const outside = !stopsNear(state.net, state.from, 1500).length || !stopsNear(state.net, state.to, 1500).length;
     box.innerHTML = `<div class="empty"><strong>${outside ? 'Esta zona todavía no tiene rutas en Ruta CR' : 'No hay buses para esa hora'}</strong>`
-      + `${outside ? 'Por ahora la app tiene las rutas de Transportes San Gabriel (San José, Desamparados, Aserrí, Acosta). ' : 'Prueba con otra hora o día. '}`
+      + `${outside ? 'No hay rutas cargadas cerca del origen o del destino. ' : 'Prueba con otra hora o día. '}`
       + 'Google Maps puede mostrarte otras opciones.</div>'
       + `<a class="btn primary" href="${esc(gmapsUrl())}" target="_blank" rel="noopener">Ver la ruta en Google Maps</a>`;
     return;
@@ -491,10 +524,10 @@ function renderResults(departAt) {
     const leave = o.leaveAt - departAt;
     return `<button type="button" class="option ${o === fastest ? 'best' : ''}" data-k="${k}">
       ${o === fastest ? '<span class="tag">Llegas primero</span>' : ''}
-      <div class="opt-top"><span class="opt-times">${formatClock(fb.depart)} → ${formatClock(o.arrive)}</span><span class="opt-dur">${formatDuration(o.arrive - o.leaveAt)}</span></div>
+      <div class="opt-top"><span class="opt-times">${approx(o.estimated)}${formatClock(fb.depart)} → ${approx(o.estimated)}${formatClock(o.arrive)}</span><span class="opt-dur">${formatDuration(o.arrive - o.leaveAt)}</span></div>
       <div class="opt-legs">${legChips(o)}</div>
       <div class="opt-bottom"><span>${leave <= 1 ? '<span class="soon">Sal ya</span>' : `Sal ${formatIn(leave)}`} · ${o.transfers ? `${o.transfers} transbordo` : 'Directo'} · caminas ${formatDistance(o.walkM)}</span>
-      <span class="opt-fare">${state.senior && o.seniorFare === 0 ? 'Gratis' : formatColones(showFare(o))}</span></div>
+      <span class="opt-fare">${fareText(o)}</span></div>${o.estimated ? '<div class="small">Hora aproximada: esta ruta no tiene horario oficial cargado.</div>' : ''}
     </button>`;
   }).join('') + `<a class="btn ghost" style="width:100%" href="${esc(gmapsUrl())}" target="_blank" rel="noopener">Comparar en Google Maps</a>`;
 }
@@ -515,9 +548,10 @@ function openTrip(o) {
         + `<span class="what"><strong>Camina ${formatDistance(l.meters)}</strong><span>${formatDuration(l.minutes)} hasta ${esc(l.to.name || 'tu destino')}</span></span></li>`);
     } else {
       const fare = state.senior ? (l.fare || 0) * seniorFactor(l.patternKm) : l.fare;
-      rows.push(`<li style="--rail:${esc(l.route.color)}"><span class="t">${formatClock(l.depart)}</span><span class="rail"><span class="node"></span></span>`
+      rows.push(`<li style="--rail:${esc(l.route.color)}"><span class="t">${approx(l.estimated)}${formatClock(l.depart)}</span><span class="rail"><span class="node"></span></span>`
         + `<span class="what"><strong>${esc(l.from.name)}</strong><span>${badge(l.route)} ${esc(l.route.long)} · hacia ${esc(l.headsign)}</span>`
-        + `<span>Viajas ${l.stops} paradas (${formatDuration(l.arrive - l.depart)}) · pasaje ${fare === 0 ? 'gratis' : formatColones(fare)}</span></span></li>`);
+        + `<span>Viajas ${l.stops} paradas (${formatDuration(l.arrive - l.depart)}) · pasaje ${fare == null ? 'consultar' : fare === 0 ? 'gratis' : formatColones(fare)}</span>`
+        + `${l.estimated ? '<span>Hora aproximada (sin horario oficial)</span>' : ''}</span></li>`);
       rows.push(`<li><span class="t">${formatClock(l.arrive)}</span><span class="rail walk"><span class="node" style="--rail:${esc(l.route.color)}"></span></span>`
         + `<span class="what"><strong>Bájate en ${esc(l.to.name)}</strong></span></li>`);
     }
@@ -525,12 +559,11 @@ function openTrip(o) {
   rows.push(`<li><span class="t">${formatClock(o.arrive)}</span><span class="rail"><span class="node" style="--rail:var(--red)"></span></span>`
     + `<span class="what"><strong>Llegas a ${esc(state.to.name)}</strong></span></li>`);
   const leave = o.leaveAt - minute;
-  const src = state.net.source;
   $('trip').innerHTML = `
     <div class="trip-sum">
       <div><small>Sal</small><strong>${formatClock(o.leaveAt)}</strong></div>
       <div><small>Llegas</small><strong>${formatClock(o.arrive)}</strong></div>
-      <div><small>Pasaje</small><strong class="money">${state.senior && o.seniorFare === 0 ? 'Gratis' : formatColones(showFare(o))}</strong></div>
+      <div><small>Pasaje</small><strong class="money">${fareText(o)}</strong></div>
     </div>
     ${$('when-mode').value === 'now' && leave > 0 && leave < 180 ? `<p class="note">Tienes que salir <strong>${formatIn(leave)}</strong> para alcanzar el bus.</p>` : ''}
     <ol class="timeline">${rows.join('')}</ol>
@@ -540,7 +573,7 @@ function openTrip(o) {
       <a class="btn ghost" href="${esc(gmapsUrl())}" target="_blank" rel="noopener">Abrir en Google Maps</a>
     </div>
     ${state.senior ? '<p class="note">Adulto mayor (Ley 7935): gratis en rutas de menos de 25 km, 50 % entre 25 y 50 km, 75 % en más de 50 km. Presenta la cédula o la tarjeta Ciudadano de Oro.</p>' : ''}
-    <p class="note warn">Horarios y tarifas según los datos de ${esc(src.publisher)} (${esc(src.version)}). ARESEP los actualiza: confirma el pasaje con el chofer.</p>`;
+    <p class="note warn">${o.estimated ? 'Algunas horas son aproximadas: la ruta viene de OpenStreetMap, sin horario oficial. ' : ''}Tarifas según ARESEP y datos publicados; confirma el pasaje con el chofer.</p>`;
   $('trip-share').addEventListener('click', () => share(o));
   $('trip-save').addEventListener('click', saveFav);
   showView('trip');
@@ -611,12 +644,12 @@ function renderNearby() {
   $('home-sub').textContent = state.me ? 'Paradas cerca de ti y el próximo bus.' : 'Toca el mapa o escribe a dónde vas.';
   if (!near.length) {
     $('tab-cerca').innerHTML = '<div class="empty"><strong>No hay paradas cargadas cerca</strong>'
-      + 'Ruta CR tiene por ahora las rutas de Transportes San Gabriel (sur de San José). Mira la pestaña Rutas o busca tu destino para verlo en Google Maps.</div>';
+      + 'Mira la pestaña Rutas o busca tu destino para verlo también en Google Maps.</div>';
     return;
   }
   $('tab-cerca').innerHTML = `<ul class="list">${near.map(({ stop, i, meters }) => {
     const next = nextDepartures(state.net, i, { now: minute, weekday, limit: 2 });
-    const when = next.length ? next.map((d) => `<span class="dep">${badge(d.route)} <span class="dep-time">${formatClock(d.time)}</span></span>`).join('') : '<span class="meta">Sin más buses hoy</span>';
+    const when = next.length ? next.map((d) => `<span class="dep">${badge(d.route)} <span class="dep-time">${approx(d.estimated)}${formatClock(d.time)}</span></span>`).join('') : '<span class="meta">Sin más buses hoy</span>';
     return `<li><button type="button" class="row-btn" data-stop="${i}"><span class="stop-sign">${stopSvg(34)}</span>`
       + `<span class="grow"><span class="name">${esc(stop.name)}</span><span class="meta">${state.me ? `${formatDistance(meters)} · ` : ''}próximo bus</span><span class="badges">${when}</span></span><span class="chev">›</span></button></li>`;
   }).join('')}</ul>`;
@@ -643,7 +676,7 @@ function openStop(i) {
     </div>
     <div class="h3">Próximos buses</div>
     ${deps.length ? `<ul class="list">${deps.map((d) => `<li><div class="row-btn">${badge(d.route)}<span class="grow"><span class="name">Hacia ${esc(d.headsign)}</span>`
-      + `<span class="meta">${esc(d.route.long)}</span></span><span style="text-align:right"><span class="dep-time">${formatClock(d.time)}</span>`
+      + `<span class="meta">${esc(d.route.long)}</span></span><span style="text-align:right"><span class="dep-time">${approx(d.estimated)}${formatClock(d.time)}</span>`
       + `<span class="meta ${d.time - minute <= 10 ? 'soon' : ''}">${formatIn(d.time - minute)}</span></span></div></li>`).join('')}</ul>`
     : '<div class="empty">No hay más buses hoy en esta parada.</div>'}`;
   $('stop-to').addEventListener('click', () => { setPlace('to', { lat: s.lat, lng: s.lng, name: s.name, kind: 'stop' }); if (state.from) search(); else toast('Elige de dónde sales.'); });
@@ -656,13 +689,24 @@ function openStop(i) {
 // ---------- Rutas ----------
 
 function renderRoutes() {
-  const r = state.net.routes;
-  $('tab-rutas').innerHTML = `<ul class="list">${r.map((x) => {
+  $('tab-rutas').innerHTML = `<input id="route-filter" class="search-box" type="search" placeholder="Buscar ruta, número, lugar o empresa" aria-label="Buscar ruta">`
+    + '<ul class="list" id="route-list"></ul><p class="small" id="route-count"></p>';
+  $('route-filter').addEventListener('input', renderRouteList);
+  renderRouteList();
+}
+
+function renderRouteList() {
+  const q = norm($('route-filter')?.value || '');
+  const all = state.net.routes.filter((x) => !q || norm(`${x.short} ${x.long} ${x.desc} ${x.agency}`).includes(q));
+  const list = all.slice(0, 80);
+  $('route-list').innerHTML = list.map((x) => {
     const prices = Object.values(state.net.fares[x.id] || {});
-    const range = prices.length ? `${formatColones(Math.min(...prices))} – ${formatColones(Math.max(...prices))}` : '';
+    const range = prices.length ? `${formatColones(Math.min(...prices))} – ${formatColones(Math.max(...prices))}` : x.fare ? formatColones(x.fare) : '';
+    const meta = [x.source === 'osm' ? 'Horario aproximado' : 'Horario oficial', range, x.desc].filter(Boolean).join(' · ');
     return `<li><button type="button" class="row-btn" data-route="${esc(x.id)}">${badge(x)}<span class="grow"><span class="name">${esc(x.long)}</span>`
-      + `<span class="meta">${esc(range)}</span></span><span class="chev">›</span></button></li>`;
-  }).join('')}</ul><p class="small">Operadas por ${esc(state.net.agencies.map((a) => a.name).join(', '))}.</p>`;
+      + `<span class="meta">${esc(meta)}</span></span><span class="chev">›</span></button></li>`;
+  }).join('') || '<li class="empty">No hay rutas con ese nombre.</li>';
+  $('route-count').textContent = `${all.length} de ${state.net.routes.length} rutas${all.length > list.length ? ` (se muestran ${list.length}; escribe para filtrar)` : ''}.`;
 }
 
 $('tab-rutas').addEventListener('click', (e) => {
@@ -751,7 +795,7 @@ async function buildMap() {
   const center = old ? old.getCenter() : CENTER;
   const zoom = old ? old.getZoom() : 12;
   if (old) old.destroy();
-  layers.stops = [];
+  shownStops.clear();
   layers.trip = [];
   layers.route = [];
   layers.pins = {};
@@ -763,7 +807,8 @@ async function buildMap() {
     center,
     zoom,
     onClick: onMapClick,
-    onZoom: () => { if (!layers.trip.length && !layers.route.length) drawStops(); },
+    onZoom: onMapMove,
+    onMove: onMapMove,
     onFallback: (msg) => { toast(`${msg} Se usa OpenStreetMap.`, 6000); state.mapStyle = 'osm'; },
   });
   if (state.from) setPin('from', state.from);
@@ -786,9 +831,11 @@ function openSettings() {
     ? 'Usando Google Maps.'
     : 'Ahora se usa un mapa gratuito. Con una clave de Google puedes elegir el mapa de Google (normal o satélite) en el botón de capas.';
   const s = state.net.source;
-  $('data-info').innerHTML = `Rutas, paradas, horarios y tarifas de ${esc(state.net.agencies.map((a) => a.name).join(', '))}, en formato GTFS publicado por `
-    + `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.publisher)}</a> (Universidad de Costa Rica), versión ${esc(s.version)}. `
-    + 'Las tarifas las fija ARESEP y pueden haber cambiado desde entonces.';
+  const osm = state.net.sources.find((x) => x.publisher === 'OpenStreetMap');
+  $('data-info').innerHTML = `<strong>Horarios oficiales:</strong> ${esc(state.net.routes.filter((r) => r.source !== 'osm').length)} rutas de Transportes San Gabriel, del GTFS publicado por `
+    + `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.publisher)}</a> (Universidad de Costa Rica, ${esc(s.version)}).`
+    + (osm ? `<br><strong>Resto del país:</strong> ${osm.routes} rutas y sus paradas de <a href="${esc(osm.url)}" target="_blank" rel="noopener">OpenStreetMap</a> (© colaboradores de OpenStreetMap, ODbL, ${esc(osm.version)}). No traen horario oficial: las horas son aproximadas.` : '')
+    + '<br>Las tarifas las fija ARESEP y pueden cambiar.';
   $('settings').hidden = false;
 }
 
@@ -812,7 +859,12 @@ $('set-key-clear').addEventListener('click', () => { save(KEY.gkey, ''); save(KE
 // ---------- Arranque ----------
 
 async function start() {
-  state.net = await (await fetch('data/cr-network.json')).json();
+  // Horarios oficiales (GTFS) + rutas de todo el país de OpenStreetMap, si están.
+  const [gtfs, osm] = await Promise.all([
+    fetch('data/cr-network.json').then((r) => r.json()),
+    fetch('data/cr-osm.json').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  ]);
+  state.net = mergeNetworks(gtfs, osm);
   state.mapStyle = load(KEY.style, null) || (googleKey() ? 'google-road' : 'osm');
   await buildMap();
   setSheet('half');

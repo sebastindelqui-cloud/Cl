@@ -39,11 +39,44 @@ export function servicesFor(network, weekday) {
   return Object.entries(network.services || {}).filter(([, days]) => days.includes(weekday)).map(([id]) => id);
 }
 
-/** Salidas de un recorrido en un día, ordenadas (minutos desde medianoche). */
+/**
+ * Salidas de un recorrido en un día, ordenadas (minutos desde medianoche).
+ * Los recorridos sin horario oficial (de OpenStreetMap) tienen una frecuencia:
+ * se generan salidas cada `headway` minutos entre la primera y la última.
+ */
 export function departuresOf(pattern, services) {
+  if (pattern.freq) {
+    const { headway, first, last } = pattern.freq;
+    const out = [];
+    for (let t = first; t <= last; t += headway) out.push(t);
+    return out;
+  }
   const out = [];
-  for (const s of services) out.push(...(pattern.trips[s] || []));
+  for (const s of services) out.push(...(pattern.trips?.[s] || []));
   return out.sort((a, b) => a - b);
+}
+
+/** ¿Las horas de este recorrido son aproximadas (sin horario oficial)? */
+export const isEstimated = (pattern) => !!pattern.freq?.estimated || !!pattern.freq;
+
+/**
+ * Une varias redes (por ejemplo el GTFS oficial y las rutas de OpenStreetMap)
+ * en una sola, renumerando las paradas.
+ */
+export function mergeNetworks(...nets) {
+  const out = { sources: [], agencies: [], routes: [], stops: [], patterns: [], fares: {}, services: {} };
+  for (const n of nets.filter(Boolean)) {
+    const base = out.stops.length;
+    out.sources.push({ ...n.source, routes: n.routes.length });
+    out.agencies.push(...n.agencies);
+    out.routes.push(...n.routes);
+    out.stops.push(...n.stops);
+    for (const p of n.patterns) out.patterns.push({ ...p, stops: p.stops.map((s) => s + base) });
+    Object.assign(out.fares, n.fares);
+    Object.assign(out.services, n.services);
+  }
+  out.source = out.sources[0];
+  return out;
 }
 
 /** Índice de la primera salida ≥ `t` (búsqueda binaria). */
@@ -58,23 +91,42 @@ function firstAtOrAfter(list, t) {
 }
 
 /** Prepara índices que el planificador reutiliza (paradas cercanas, recorridos por parada). */
+const CELL = 0.01; // ~1,1 km
+
 export function indexNetwork(network) {
   if (network._index) return network._index;
   const routeById = new Map(network.routes.map((r) => [r.id, r]));
   const patternsAtStop = network.stops.map(() => []);
   network.patterns.forEach((p, pi) => p.stops.forEach((s, i) => patternsAtStop[s].push([pi, i])));
-  const nearby = network.stops.map((a, ai) => network.stops
-    .map((b, bi) => ({ bi, m: distanceM(a, b) }))
+  // Cuadrícula para encontrar paradas cercanas rápido aunque haya miles.
+  const grid = new Map();
+  const cellKey = (lat, lng) => `${Math.floor(lat / CELL)}:${Math.floor(lng / CELL)}`;
+  network.stops.forEach((s, i) => {
+    const k = cellKey(s.lat, s.lng);
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(i);
+  });
+  const around = (p, meters) => {
+    const r = Math.ceil(meters / 1100); // celdas a revisar alrededor
+    const cy = Math.floor(p.lat / CELL);
+    const cx = Math.floor(p.lng / CELL);
+    const out = [];
+    for (let y = cy - r - 1; y <= cy + r + 1; y += 1) for (let x = cx - r - 1; x <= cx + r + 1; x += 1) out.push(...(grid.get(`${y}:${x}`) || []));
+    return out;
+  };
+  const nearby = network.stops.map((a, ai) => around(a, DEFAULTS.transferWalkM)
+    .map((bi) => ({ bi, m: distanceM(a, network.stops[bi]) }))
     .filter((x) => x.bi !== ai && x.m <= DEFAULTS.transferWalkM));
-  const index = { routeById, patternsAtStop, nearby };
+  const index = { routeById, patternsAtStop, nearby, around };
   Object.defineProperty(network, '_index', { value: index, enumerable: false });
   return index;
 }
 
 /** Paradas a menos de `maxM` metros de un punto, de la más cercana a la más lejana. */
 export function stopsNear(network, point, maxM) {
-  return network.stops
-    .map((stop, i) => ({ stop, i, meters: distanceM(point, stop) }))
+  const ids = maxM <= 5000 ? indexNetwork(network).around(point, maxM) : network.stops.map((_, i) => i);
+  return ids
+    .map((i) => ({ stop: network.stops[i], i, meters: distanceM(point, network.stops[i]) }))
     .filter((x) => x.meters <= maxM)
     .sort((a, b) => a.meters - b.meters);
 }
@@ -82,7 +134,7 @@ export function stopsNear(network, point, maxM) {
 /** Pasaje de un tramo según las zonas de subida y bajada. */
 export function fareFor(network, routeId, fromStop, toStop) {
   const table = network.fares?.[routeId];
-  if (!table) return null;
+  if (!table) return indexNetwork(network).routeById.get(routeId)?.fare ?? null;
   const a = fromStop.zone;
   const b = toStop.zone;
   const v = table[`${a}|${b}`] ?? table[`${b}|${a}`];
@@ -147,7 +199,7 @@ export function planTrip(network, from, to, { departAt, weekday, ...options } = 
               type: 'bus', route: routeById.get(p.route), pattern: p, headsign: p.headsign,
               from: S[trip.boardStop], to: S[stopIdx], boardPos: trip.boardPos, alightPos: pos,
               depart: trip.start + p.offsets[trip.boardPos], arrive: arr, stops: pos - trip.boardPos,
-              km: +(p.dist[pos] - p.dist[trip.boardPos]).toFixed(1), tripStart: trip.start,
+              km: +(p.dist[pos] - p.dist[trip.boardPos]).toFixed(1), tripStart: trip.start, estimated: isEstimated(p),
             };
             const label = { time: arr, legs: [...trip.label.legs, leg], lastPattern: pi };
             cur.set(stopIdx, label);
@@ -208,6 +260,7 @@ function finish(network, r, departAt) {
   }
   const walkM = legs.filter((l) => l.type === 'walk').reduce((s, l) => s + l.meters, 0);
   const fare = buses.reduce((s, l) => s + (l.fare || 0), 0);
+  const fareKnown = buses.every((l) => l.fare != null);
   return {
     legs,
     depart: departAt,
@@ -215,6 +268,8 @@ function finish(network, r, departAt) {
     arrive: r.arrive,
     duration: r.arrive - departAt,
     fare,
+    fareKnown,
+    estimated: buses.some((l) => l.estimated),
     seniorFare: buses.reduce((s, l) => s + (l.fare || 0) * seniorFactor(l.patternKm), 0),
     buses: buses.length,
     transfers: Math.max(0, buses.length - 1),
@@ -259,7 +314,7 @@ export function nextDepartures(network, stopIdx, { now, weekday, limit = 6 } = {
     if (pos === p.stops.length - 1) continue; // es la última parada: ahí no se sube nadie
     for (const start of departuresOf(p, services)) {
       const time = start + p.offsets[pos];
-      if (time >= now) out.push({ route: routeById.get(p.route), headsign: p.headsign, time, pattern: p });
+      if (time >= now) out.push({ route: routeById.get(p.route), headsign: p.headsign, time, pattern: p, estimated: isEstimated(p) });
     }
   }
   return out.sort((a, b) => a.time - b.time).slice(0, limit);

@@ -56,7 +56,7 @@ function loadGoogle(key) {
   });
 }
 
-async function createGoogle(el, { key, center, zoom, onClick, onZoom }) {
+async function createGoogle(el, { key, center, zoom, onClick, onZoom, onMove }) {
   await loadGoogle(key);
   const g = window.google.maps;
   const map = new g.Map(el, {
@@ -71,6 +71,7 @@ async function createGoogle(el, { key, center, zoom, onClick, onZoom }) {
   });
   map.addListener('click', (e) => onClick?.({ lat: e.latLng.lat(), lng: e.latLng.lng() }));
   map.addListener('zoom_changed', () => onZoom?.(map.getZoom()));
+  map.addListener('idle', () => onMove?.());
   const toLL = ([lat, lng]) => ({ lat, lng });
   return {
     provider: 'google',
@@ -86,6 +87,11 @@ async function createGoogle(el, { key, center, zoom, onClick, onZoom }) {
     },
     getZoom: () => map.getZoom(),
     getCenter() { const c = map.getCenter(); return [c.lat(), c.lng()]; },
+    getBounds() {
+      const b = map.getBounds();
+      if (!b) return null;
+      return { s: b.getSouthWest().lat(), w: b.getSouthWest().lng(), n: b.getNorthEast().lat(), e: b.getNorthEast().lng() };
+    },
     addLine(points, { color, weight = 5, opacity = 1, dashed = false, z = 1 }) {
       const line = new g.Polyline({
         map, path: points.map(toLL), strokeColor: color, strokeWeight: weight, zIndex: z, clickable: false,
@@ -136,7 +142,7 @@ function leafletBase(id) {
   return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
 }
 
-function createLeaflet(el, { center, zoom, style = 'osm', onClick, onZoom }) {
+function createLeaflet(el, { center, zoom, style = 'osm', onClick, onZoom, onMove }) {
   const L = window.L;
   const map = L.map(el, { zoomControl: false, attributionControl: true, preferCanvas: true }).setView(center, zoom);
   let base = null;
@@ -152,6 +158,7 @@ function createLeaflet(el, { center, zoom, style = 'osm', onClick, onZoom }) {
   setBase(style);
   map.on('click', (e) => onClick?.({ lat: e.latlng.lat, lng: e.latlng.lng }));
   map.on('zoomend', () => onZoom?.(map.getZoom()));
+  map.on('moveend', () => onMove?.());
   return {
     provider: 'leaflet',
     leaflet: map,
@@ -165,6 +172,7 @@ function createLeaflet(el, { center, zoom, style = 'osm', onClick, onZoom }) {
     },
     getZoom: () => map.getZoom(),
     getCenter() { const c = map.getCenter(); return [c.lat, c.lng]; },
+    getBounds() { const b = map.getBounds(); return { s: b.getSouth(), w: b.getWest(), n: b.getNorth(), e: b.getEast() }; },
     addLine(points, { color, weight = 5, opacity = 1, dashed = false }) {
       const line = L.polyline(points, { color, weight, opacity, dashArray: dashed ? `${weight * 0.5} ${weight * 2}` : null, lineCap: 'round', interactive: false }).addTo(map);
       return { remove: () => line.remove() };
