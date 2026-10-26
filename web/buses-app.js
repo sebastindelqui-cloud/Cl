@@ -318,7 +318,7 @@ function suggestionsFor(text) {
   }
   const stops = state.net.stops
     .map((s, i) => ({ s, i, n: norm(s.name) }))
-    .filter((x) => x.n.includes(q))
+    .filter((x) => !x.s.virtual && x.n.includes(q))
     .sort((a, b) => a.n.indexOf(q) - b.n.indexOf(q))
     .slice(0, 6);
   for (const { s, i } of stops) {
@@ -549,11 +549,13 @@ function openTrip(o) {
     } else {
       const fare = state.senior ? (l.fare || 0) * seniorFactor(l.patternKm) : l.fare;
       rows.push(`<li style="--rail:${esc(l.route.color)}"><span class="t">${approx(l.estimated)}${formatClock(l.depart)}</span><span class="rail"><span class="node"></span></span>`
-        + `<span class="what"><strong>${esc(l.from.name)}</strong><span>${badge(l.route)} ${esc(l.route.long)} · hacia ${esc(l.headsign)}</span>`
+        + `<span class="what"><strong>${l.from.virtual ? 'Toma el bus en la calle' : esc(l.from.name)}</strong>`
+        + `${l.from.virtual ? `<span>${esc(l.from.name)}. Sin parada registrada aquí: hazle la señal al bus.</span>` : ''}`
+        + `<span>${badge(l.route)} ${esc(l.route.long)} · hacia ${esc(l.headsign)}</span>`
         + `<span>Viajas ${l.stops} paradas (${formatDuration(l.arrive - l.depart)}) · pasaje ${fare == null ? 'consultar' : fare === 0 ? 'gratis' : formatColones(fare)}</span>`
         + `${l.estimated ? '<span>Hora aproximada (sin horario oficial)</span>' : ''}</span></li>`);
       rows.push(`<li><span class="t">${formatClock(l.arrive)}</span><span class="rail walk"><span class="node" style="--rail:${esc(l.route.color)}"></span></span>`
-        + `<span class="what"><strong>Bájate en ${esc(l.to.name)}</strong></span></li>`);
+        + `<span class="what"><strong>Bájate en ${esc(l.to.virtual ? l.to.name.replace(/^Sobre la ruta/, 'la ruta') : l.to.name)}</strong></span></li>`);
     }
   }
   rows.push(`<li><span class="t">${formatClock(o.arrive)}</span><span class="rail"><span class="node" style="--rail:var(--red)"></span></span>`
@@ -639,7 +641,7 @@ $('tab-guardados').addEventListener('click', (e) => {
 
 function renderNearby() {
   const center = state.me || (() => { const c = state.map.getCenter(); return { lat: c[0], lng: c[1] }; })();
-  const near = stopsNear(state.net, center, state.me ? 1500 : 4000).slice(0, 6);
+  const near = stopsNear(state.net, center, state.me ? 1500 : 4000).filter((x) => !x.stop.virtual).slice(0, 6);
   const { minute, weekday } = nowInfo();
   $('home-sub').textContent = state.me ? 'Paradas cerca de ti y el próximo bus.' : 'Toca el mapa o escribe a dónde vas.';
   if (!near.length) {
