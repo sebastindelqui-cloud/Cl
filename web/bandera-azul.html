@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="es-CR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bitácora Azul</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Plataforma de trabajo: barra superior fija, columna de resumen + área de trabajo; en teléfono todo en una columna. */
+:root {
+  --sea: #0d3b66;        /* azul mar: marca y acciones */
+  --teal: #13808a;       /* turquesa: progreso */
+  --leaf: #2f8f4e;       /* verde: cumplido / galardón */
+  --sun: #c27a00;        /* ámbar: pendiente / avisos */
+  --coral: #c8463d;      /* rojo: vencido / falta */
+  --bg: #f2f6f9;
+  --surface: #ffffff;
+  --surface-2: #e9f0f5;
+  --ink: #0f2233;
+  --muted: #557086;
+  --line: #d6e1ea;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Sans 3", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --shadow: 0 1px 2px rgba(13, 59, 102, .08), 0 8px 24px rgba(13, 59, 102, .08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sea: #8cc4ff; --teal: #4fc6cf; --leaf: #5fd38a; --sun: #ffbe4d; --coral: #ff7b72;
+    --bg: #0a1622; --surface: #102131; --surface-2: #17304a; --ink: #e7f0f8; --muted: #93abc0; --line: #23405c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --sea: #8cc4ff; --teal: #4fc6cf; --leaf: #5fd38a; --sun: #ffbe4d; --coral: #ff7b72;
+  --bg: #0a1622; --surface: #102131; --surface-2: #17304a; --ink: #e7f0f8; --muted: #93abc0; --line: #23405c;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--teal) 60%, transparent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--display); letter-spacing: -.01em; text-wrap: balance; margin: 0; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--sea); }
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9;
+  background: var(--sea); color: #fff;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+:root:not([data-theme="light"]) .top { color: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .top { background: #0d2a45; } }
+:root[data-theme="dark"] .top { background: #0d2a45; }
+.top-in { max-width: 1160px; margin: 0 auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 20px; }
+.flag { width: 30px; height: 22px; border-radius: 4px; background: #1f6fd1; position: relative; box-shadow: inset 0 0 0 2px rgba(255,255,255,.85); }
+.flag::after { content: ""; position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #fff; }
+.proto { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: rgba(255,255,255,.16); padding: 3px 8px; border-radius: 6px; }
+.roles { margin-left: auto; display: flex; background: rgba(255,255,255,.14); border-radius: 10px; padding: 3px; }
+.roles button { border: 0; background: none; color: #fff; padding: 7px 12px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+.roles button.on { background: #fff; color: #0d3b66; }
+
+.wrap {
+  max-width: 1160px; margin: 0 auto;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.notice { font-size: 14px; color: var(--muted); margin: 0 0 16px; }
+
+.grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); }
+.stack { display: grid; gap: 16px; min-width: 0; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; padding: 10px 16px; font-weight: 700; text-decoration: none; }
+.btn.primary { background: var(--sea); color: var(--bg); }
+.btn.ghost { background: var(--surface-2); color: var(--ink); }
+.btn.good { background: var(--leaf); color: var(--bg); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Resumen del comité */
+.who h2 { font-size: 22px; margin: 4px 0 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { font-size: 13px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); color: var(--ink); }
+.chip.state-curso { background: color-mix(in srgb, var(--sun) 18%, transparent); color: var(--sun); }
+.chip.state-enviado { background: color-mix(in srgb, var(--teal) 18%, transparent); color: var(--teal); }
+.chip.state-evaluado { background: color-mix(in srgb, var(--leaf) 18%, transparent); color: var(--leaf); }
+
+.ring { display: flex; align-items: center; gap: 16px; margin: 16px 0 6px; }
+.ring svg { flex: none; }
+.ring .big { font-family: var(--display); font-size: 34px; font-weight: 800; line-height: 1; }
+.deadline { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px; display: flex; align-items: baseline; gap: 10px; }
+.deadline .num { font-size: 26px; color: var(--sea); }
+
+/* Parámetros */
+.params { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.param { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 14px; padding: 14px; display: grid; gap: 8px; }
+.param:hover { border-color: color-mix(in srgb, var(--teal) 50%, var(--line)); }
+.param.active { border-color: var(--teal); box-shadow: 0 0 0 2px color-mix(in srgb, var(--teal) 35%, transparent); }
+.param-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.param-name { font-weight: 700; }
+.weight { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--teal); border-radius: 4px; }
+.bar.full span { background: var(--leaf); }
+.param-meta { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; }
+.param-meta .ok { color: var(--leaf); font-weight: 700; }
+.param-meta .need { color: var(--sun); font-weight: 700; }
+
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.section-head h3 { font-size: 19px; }
+
+/* Actividades */
+.acts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.act { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; border: 1px solid var(--line); border-radius: 14px; padding: 10px; background: var(--surface); }
+.act img, .thumb { width: 76px; height: 76px; object-fit: cover; border-radius: 10px; background: var(--surface-2); display: block; }
+.act h4 { margin: 0; font-size: 16px; }
+.act p { margin: 2px 0 0; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.act-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; color: var(--muted); margin-top: 4px; }
+.empty { border: 1px dashed var(--line); border-radius: 14px; padding: 20px; text-align: center; color: var(--muted); }
+
+/* Informe */
+.doc { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: clamp(18px, 4vw, 40px); }
+.doc h2 { font-size: clamp(24px, 3.4vw, 32px); }
+.doc-cover { border-bottom: 3px solid var(--sea); padding-bottom: 18px; margin-bottom: 18px; }
+.doc-cover dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 14px 0 0; font-size: 15px; }
+.doc-cover dt { color: var(--muted); }
+.doc-cover dd { margin: 0; font-weight: 600; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+td.n, th.n { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.doc-section { margin-top: 26px; }
+.doc-section h3 { font-size: 20px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.doc-act { border-left: 3px solid var(--teal); padding: 4px 0 4px 14px; margin: 14px 0; }
+.doc-act h4 { margin: 0; font-size: 16px; }
+.doc-act p { margin: 4px 0; }
+.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }
+.photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; max-width: 100%; }
+
+/* Evaluación */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.kpi .num { font-size: 30px; display: block; color: var(--sea); }
+.cat-bars { display: grid; gap: 8px; }
+.cat-row { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr) 32px; gap: 10px; align-items: center; font-size: 14px; }
+.cat-row .bar { height: 12px; }
+.row-btn { border: 0; background: none; color: var(--sea); font-weight: 700; padding: 0; text-align: left; }
+.score-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.score-row input[type="number"] { width: 90px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); text-align: right; font-family: var(--mono); }
+.score-row textarea { grid-column: 1 / -1; width: 100%; min-height: 40px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); resize: vertical; }
+.result { margin-top: 14px; padding: 14px; border-radius: 12px; background: var(--surface-2); }
+.result .num { font-size: 32px; }
+.stars { color: var(--sun); font-size: 22px; letter-spacing: 2px; }
+.pass { color: var(--leaf); font-weight: 700; }
+.fail { color: var(--coral); font-weight: 700; }
+
+/* Formulario */
+.modal { position: fixed; inset: 0; z-index: 50; background: rgba(5, 18, 30, .55); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.modal-box { width: min(560px, 100%); max-height: 100%; overflow-y: auto; background: var(--surface); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); }
+.modal-box h3 { font-size: 21px; margin-bottom: 12px; }
+.field { display: grid; gap: 4px; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+.field input, .field select, .field textarea { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); font-weight: 400; font-size: 16px; width: 100%; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 480px) { .two { grid-template-columns: 1fr; } }
+.previews { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.previews img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
+.error { color: var(--coral); font-size: 14px; min-height: 1.2em; margin: 0 0 8px; }
+
+.toast { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600; box-shadow: var(--shadow); max-width: calc(100% - 32px); }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.filters button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 14px; font-weight: 600; }
+.filters button.on { background: var(--sea); color: var(--bg); border-color: var(--sea); }
+.back { border: 0; background: none; color: var(--sea); font-weight: 700; padding: 0; margin-bottom: 12px; }
+@media (prefers-reduced-motion: no-preference) { .bar span { transition: width .4s ease; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <span class="brand"><span class="flag" aria-hidden="true"></span>Bitácora Azul</span>
+    <span class="proto">Prototipo</span>
+    <nav class="roles" aria-label="Vista">
+      <button type="button" id="role-comite" class="on">Comité</button>
+      <button type="button" id="role-eval">Evaluación</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="notice">Prototipo independiente para digitalizar los informes del Programa Bandera Azul Ecológica. No es un sistema oficial. Comités, actividades y parámetros son <strong>datos de demostración</strong>; los cambios se guardan solo en este navegador.</p>
+  <div id="view"></div>
+</main>
+
+<div id="modal" class="modal" hidden></div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+// ---------- Categorías y parámetros (de ejemplo; se cargarían los del manual oficial de cada categoría) ----------
+const CATEGORIAS = {
+  'centros-educativos': { nombre: 'Centros educativos', params: [
+    ['agua', 'Agua', 15], ['energia', 'Energía', 15], ['residuos', 'Residuos sólidos', 20], ['educacion', 'Educación ambiental', 20],
+    ['compras', 'Compras sostenibles', 10], ['biodiversidad', 'Áreas verdes y biodiversidad', 10], ['salud', 'Salud y bienestar', 10]] },
+  comunidades: { nombre: 'Comunidades', params: [
+    ['agua', 'Recurso hídrico', 20], ['saneamiento', 'Saneamiento', 15], ['residuos', 'Residuos sólidos', 20], ['educacion', 'Educación ambiental', 15],
+    ['verdes', 'Áreas verdes', 15], ['riesgo', 'Gestión del riesgo', 15]] },
+  playas: { nombre: 'Playas', params: [
+    ['agua-mar', 'Calidad del agua de mar', 25], ['sanitaria', 'Servicios sanitarios', 15], ['limpieza', 'Limpieza de la playa', 20],
+    ['educacion', 'Educación ambiental', 15], ['seguridad', 'Seguridad y salvamento', 15], ['gestion', 'Gestión del comité local', 10]] },
+  'cambio-climatico': { nombre: 'Acciones para el cambio climático', params: [
+    ['agua', 'Agua', 15], ['energia', 'Energía eléctrica', 20], ['combustibles', 'Combustibles fósiles', 20], ['residuos', 'Residuos', 15],
+    ['educacion', 'Educación y sensibilización', 15], ['compensacion', 'Compensación', 15]] },
+  hogares: { nombre: 'Hogares sostenibles', params: [
+    ['agua', 'Agua', 25], ['energia', 'Energía', 25], ['residuos', 'Residuos', 25], ['consumo', 'Consumo responsable', 25]] },
+};
+const META = 3; // actividades con evidencia por parámetro para darlo por cubierto (regla de ejemplo)
+const PERIODO = 2026;
+const COLORES = { agua: '#1f6fd1', 'agua-mar': '#1f6fd1', energia: '#c27a00', residuos: '#2f8f4e', educacion: '#7a4fd0', compras: '#13808a',
+  biodiversidad: '#3d8b2f', salud: '#c8463d', saneamiento: '#4b6fa8', verdes: '#3d8b2f', riesgo: '#b4541d', sanitaria: '#4b6fa8',
+  limpieza: '#2f8f4e', seguridad: '#c8463d', gestion: '#557086', combustibles: '#8a5a2b', compensacion: '#3d8b2f', consumo: '#13808a' };
+
+// ---------- Datos de demostración ----------
+/** Imagen de ejemplo (dibujada, sin fotos reales) para las evidencias de demostración. */
+function demoPhoto(param, label, seed = 0) {
+  const c = COLORES[param] || '#13808a';
+  const hills = `M0 ${150 - seed * 7} Q 80 ${110 + seed * 5} 160 ${140 - seed * 3} T 320 ${130 + seed * 4} V240 H0 Z`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240"><rect width="320" height="240" fill="${c}"/>`
+    + `<circle cx="${250 - seed * 20}" cy="60" r="28" fill="#fff" fill-opacity=".35"/><path d="${hills}" fill="#000" fill-opacity=".18"/>`
+    + `<text x="16" y="222" font-family="sans-serif" font-size="20" font-weight="700" fill="#fff">${label}</text></svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function act(param, fecha, titulo, descripcion, participantes, responsable, nFotos = 1) {
+  return { id: Math.random().toString(36).slice(2, 10), param, fecha, titulo, descripcion, participantes, responsable,
+    fotos: Array.from({ length: nFotos }, (_, i) => demoPhoto(param, titulo.split(' ').slice(0, 3).join(' '), i)) };
+}
+
+function demoData() {
+  return { comites: [
+    { id: 'c1', nombre: 'Escuela Los Guayabos', categoria: 'centros-educativos', provincia: 'Heredia', canton: 'Barva', coordinador: 'Coordinación del comité (ejemplo)', estado: 'curso',
+      actividades: [
+        act('agua', '2026-02-20', 'Revisión de fugas en baños', 'Se revisaron 14 llaves y 6 inodoros; se repararon 3 fugas.', 8, 'Comisión de agua', 2),
+        act('agua', '2026-05-12', 'Lectura mensual del hidrómetro', 'Registro de consumo de enero a abril: 41 m³ promedio por mes.', 3, 'Dirección'),
+        act('energia', '2026-03-05', 'Cambio a iluminación LED', 'Se cambiaron 22 fluorescentes por LED en aulas 1 a 6.', 5, 'Junta de educación', 2),
+        act('residuos', '2026-03-18', 'Centro de acopio escolar', 'Se instalaron estaciones de separación en cada pabellón.', 120, 'Comisión de residuos', 3),
+        act('residuos', '2026-06-03', 'Feria de reciclaje', 'Se recolectaron 86 kg de plástico y 40 kg de papel.', 210, 'Comisión de residuos', 2),
+        act('residuos', '2026-08-21', 'Taller de compostaje', 'Compostera para residuos del comedor; 25 kg por semana.', 45, 'Docente de ciencias'),
+        act('educacion', '2026-04-22', 'Día de la Tierra', 'Charlas por grado y mural sobre la cuenca del río.', 300, 'Comité PBAE', 2),
+        act('educacion', '2026-09-15', 'Desfile con materiales reciclados', 'Faroles y trajes hechos con material reutilizado.', 260, 'Personal docente'),
+        act('biodiversidad', '2026-06-05', 'Siembra de árboles nativos', 'Se sembraron 30 árboles nativos en el lindero norte.', 60, 'Comisión de áreas verdes', 2),
+        act('salud', '2026-07-10', 'Feria de alimentación saludable', 'Degustación de frutas y charla de nutrición del EBAIS.', 150, 'Comedor escolar'),
+      ] },
+    { id: 'c2', nombre: 'Comité Local Playa Las Tortugas', categoria: 'playas', provincia: 'Guanacaste', canton: 'Santa Cruz', coordinador: 'Comité local (ejemplo)', estado: 'enviado', enviado: '2026-10-02',
+      actividades: [
+        act('agua-mar', '2026-01-15', 'Muestreo de agua de mar', 'Muestras para análisis microbiológico en 3 puntos.', 4, 'Comité local'),
+        act('agua-mar', '2026-04-15', 'Segundo muestreo', 'Resultados dentro de la norma en los 3 puntos.', 4, 'Comité local'),
+        act('agua-mar', '2026-07-15', 'Tercer muestreo', 'Se agregó un punto en la desembocadura del estero.', 5, 'Comité local'),
+        act('limpieza', '2026-02-07', 'Limpieza de playa', 'Recolección de 140 kg de residuos en 1,2 km.', 55, 'Voluntariado', 2),
+        act('limpieza', '2026-05-09', 'Limpieza con escuelas', 'Participaron dos escuelas del distrito.', 80, 'Comité local'),
+        act('limpieza', '2026-09-19', 'Día internacional de limpieza de costas', 'Se registraron 32 tipos de residuos.', 95, 'Voluntariado', 2),
+        act('sanitaria', '2026-03-01', 'Mantenimiento de baterías sanitarias', 'Pintura y reparación de 4 servicios.', 6, 'Municipalidad'),
+        act('educacion', '2026-03-20', 'Rotulación sobre tortugas', 'Se colocaron 5 rótulos sobre anidación.', 12, 'Comité local'),
+        act('seguridad', '2026-04-01', 'Capacitación en salvamento', 'Curso básico para 10 personas de la comunidad.', 10, 'Cruz Roja (ejemplo)'),
+        act('gestion', '2026-01-10', 'Plan de trabajo anual', 'Aprobación del plan y distribución de responsables.', 9, 'Comité local'),
+      ] },
+    { id: 'c3', nombre: 'Comunidad Barrio La Esperanza', categoria: 'comunidades', provincia: 'Cartago', canton: 'Paraíso', coordinador: 'Asociación de desarrollo (ejemplo)', estado: 'evaluado', enviado: '2026-09-20',
+      evaluacion: { agua: [95, 'Buen registro de la naciente.'], saneamiento: [90, ''], residuos: [96, 'Excelente campaña de reciclaje.'], educacion: [92, ''], verdes: [94, ''], riesgo: [93, 'Plan comunal actualizado.'] },
+      actividades: [
+        act('agua', '2026-02-11', 'Protección de la naciente', 'Cercado y reforestación alrededor de la naciente.', 30, 'ASADA (ejemplo)', 2),
+        act('residuos', '2026-03-14', 'Campaña de reciclaje', 'Recolección casa por casa de 1,1 toneladas.', 70, 'Asociación', 2),
+        act('educacion', '2026-05-30', 'Charlas en el salón comunal', 'Tres charlas sobre separación de residuos.', 90, 'Asociación'),
+        act('verdes', '2026-06-20', 'Arborización del parque', '45 árboles sembrados.', 40, 'Vecinos'),
+        act('riesgo', '2026-07-08', 'Simulacro de inundación', 'Con el comité municipal de emergencias.', 120, 'Comité comunal de emergencias'),
+        act('saneamiento', '2026-08-12', 'Limpieza de alcantarillas', 'Tres cuadras sin obstrucciones antes de lluvias.', 25, 'Vecinos'),
+      ] },
+    { id: 'c4', nombre: 'Cooperativa El Roble, oficinas centrales', categoria: 'cambio-climatico', provincia: 'San José', canton: 'Montes de Oca', coordinador: 'Gestión ambiental (ejemplo)', estado: 'enviado', enviado: '2026-10-11',
+      actividades: [
+        act('energia', '2026-02-02', 'Paneles solares', 'Instalación de 12 kWp en el techo.', 4, 'Mantenimiento', 2),
+        act('combustibles', '2026-03-10', 'Teletrabajo dos días', 'Reducción estimada de 18 % en combustible.', 60, 'Recursos humanos'),
+        act('residuos', '2026-04-05', 'Cero vasos desechables', 'Se entregaron tazas reutilizables.', 60, 'Comité'),
+        act('educacion', '2026-05-18', 'Taller de huella de carbono', 'Inventario de emisiones 2025.', 25, 'Comité'),
+        act('compensacion', '2026-06-25', 'Reforestación en Turrialba', '500 árboles en finca aliada.', 35, 'Comité', 2),
+        act('agua', '2026-07-01', 'Sanitarios de bajo consumo', 'Cambio de 8 sanitarios.', 3, 'Mantenimiento'),
+      ] },
+    { id: 'c5', nombre: 'Hogar sostenible N.º 1042', categoria: 'hogares', provincia: 'Alajuela', canton: 'Grecia', coordinador: 'Familia participante (ejemplo)', estado: 'curso',
+      actividades: [
+        act('agua', '2026-03-03', 'Cosecha de agua de lluvia', 'Tanque de 1 000 L para el jardín.', 4, 'Familia'),
+        act('residuos', '2026-04-10', 'Compost casero', 'Compostera para residuos de cocina.', 4, 'Familia'),
+      ] },
+  ] };
+}
+
+// ---------- Estado y guardado ----------
+const KEY = 'bitacora-azul.v1';
+function load() {
+  try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch { /* sin almacenamiento */ }
+  return demoData();
+}
+let data = load();
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(data));
+  } catch (e) {
+    // Sin espacio: avisar y no aceptar el cambio. Sin almacenamiento (modo privado): sigue en memoria.
+    if (e && e.name === 'QuotaExceededError') { toast('No hay espacio en este navegador para más fotos. Usa fotos más livianas.'); return false; }
+  }
+  return true;
+}
+const ui = { role: 'comite', comite: 'c1', filtro: null, tab: 'trabajo', evalId: null, evalFiltro: 'enviado' };
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('es-CR', { day: 'numeric', month: 'short', year: 'numeric' });
+const fmtNum = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const comite = (id) => data.comites.find((c) => c.id === id);
+const cat = (c) => CATEGORIAS[c.categoria];
+
+let toastTimer;
+function toast(text) {
+  $('toast').textContent = text;
+  $('toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('toast').hidden = true; }, 3200);
+}
+
+// ---------- Cálculos ----------
+function coverage(c) {
+  const ps = cat(c).params;
+  const rows = ps.map(([id, nombre, peso]) => {
+    const acts = c.actividades.filter((a) => a.param === id);
+    const conEvidencia = acts.filter((a) => a.fotos.length).length;
+    return { id, nombre, peso, acts, n: acts.length, conEvidencia, pct: Math.min(1, conEvidencia / META), participantes: acts.reduce((s, a) => s + Number(a.participantes || 0), 0) };
+  });
+  const total = rows.reduce((s, r) => s + r.pct * r.peso, 0) / rows.reduce((s, r) => s + r.peso, 0);
+  return { rows, total };
+}
+
+function evalResult(c) {
+  if (!c.evaluacion) return null;
+  const ps = cat(c).params;
+  let sum = 0;
+  let w = 0;
+  for (const [id, , peso] of ps) {
+    const v = Number(c.evaluacion[id]?.[0] ?? 0);
+    sum += v * peso;
+    w += peso;
+  }
+  const nota = sum / w;
+  // Regla de ejemplo: 90 o más obtiene el galardón; cada 2 puntos sobre 90 suma una estrella (máximo 5).
+  const estrellas = nota >= 90 ? Math.min(5, 1 + Math.floor((nota - 90) / 2)) : 0;
+  return { nota, estrellas };
+}
+
+function daysToDeadline() {
+  const now = new Date();
+  const deadline = new Date(PERIODO + 1, 1, 15); // 15 de febrero del año siguiente
+  return { days: Math.ceil((deadline - now) / 86_400_000), deadline };
+}
+
+const ESTADOS = { curso: 'En curso', enviado: 'Informe enviado', evaluado: 'Evaluado' };
+
+// ---------- Vista del comité ----------
+function ringSvg(p) {
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  return `<svg width="84" height="84" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${r}" fill="none" stroke="var(--surface-2)" stroke-width="10"/>`
+    + `<circle cx="42" cy="42" r="${r}" fill="none" stroke="${p >= 1 ? 'var(--leaf)' : 'var(--teal)'}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${c * p} ${c}" transform="rotate(-90 42 42)"/></svg>`;
+}
+
+function renderComite() {
+  const c = comite(ui.comite);
+  const cov = coverage(c);
+  const { days } = daysToDeadline();
+  const res = evalResult(c);
+  const options = data.comites.map((x) => `<option value="${x.id}" ${x.id === c.id ? 'selected' : ''}>${esc(x.nombre)}</option>`).join('');
+  const acts = c.actividades.filter((a) => !ui.filtro || a.param === ui.filtro).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const pname = (id) => cat(c).params.find((p) => p[0] === id)?.[1] || id;
+
+  const resumen = `
+    <aside class="panel who">
+      <label class="field" style="margin:0 0 10px"><span class="eyebrow">Ver como el comité</span>
+        <select id="sel-comite">${options}</select></label>
+      <h2>${esc(c.nombre)}</h2>
+      <div class="muted small">${esc(cat(c).nombre)} · ${esc(c.canton)}, ${esc(c.provincia)}</div>
+      <div class="chips"><span class="chip state-${c.estado}">${ESTADOS[c.estado]}</span><span class="chip">Periodo ${PERIODO}</span></div>
+      <div class="ring">${ringSvg(cov.total)}<div><div class="big num">${Math.round(cov.total * 100)}%</div><div class="muted small">de los parámetros con evidencia suficiente</div></div></div>
+      <div class="muted small"><span class="num">${c.actividades.length}</span> actividades · <span class="num">${fmtNum(c.actividades.reduce((s, a) => s + Number(a.participantes || 0), 0))}</span> participaciones · <span class="num">${c.actividades.reduce((s, a) => s + a.fotos.length, 0)}</span> fotos</div>
+      ${res ? `<div class="result"><div class="eyebrow">Resultado de la evaluación</div><div class="num">${res.nota.toFixed(1)}</div>${res.estrellas ? `<div class="stars" aria-label="${res.estrellas} estrellas">${'★'.repeat(res.estrellas)}</div><div class="pass">Obtiene el galardón</div>` : '<div class="fail">No alcanza el galardón</div>'}</div>` : ''}
+      <div class="deadline"><span class="num">${days > 0 ? days : 0}</span><span class="small muted">días para entregar el informe final (15 de febrero de ${PERIODO + 1})</span></div>
+    </aside>`;
+
+  const trabajo = `
+    <section class="panel">
+      <div class="section-head"><h3>Parámetros de la categoría</h3><span class="small muted">Meta de ejemplo: ${META} actividades con fotos por parámetro</span></div>
+      <div class="params">${cov.rows.map((r) => `
+        <button type="button" class="param ${ui.filtro === r.id ? 'active' : ''}" data-param="${r.id}">
+          <span class="param-top"><span class="param-name">${esc(r.nombre)}</span><span class="weight">${r.peso}%</span></span>
+          <span class="bar ${r.pct >= 1 ? 'full' : ''}"><span style="width:${Math.round(r.pct * 100)}%"></span></span>
+          <span class="param-meta"><span>${r.n} actividad${r.n === 1 ? '' : 'es'}</span>${r.pct >= 1 ? '<span class="ok">Cubierto</span>' : `<span class="need">Faltan ${META - r.conEvidencia}</span>`}</span>
+        </button>`).join('')}</div>
+    </section>
+    <section class="panel">
+      <div class="section-head">
+        <h3>${ui.filtro ? `Actividades: ${esc(pname(ui.filtro))}` : 'Todas las actividades'}</h3>
+        <div class="btn-row">
+          ${ui.filtro ? '<button type="button" class="btn ghost" id="clear-filter">Ver todas</button>' : ''}
+          <button type="button" class="btn primary" id="new-act" ${c.estado !== 'curso' ? 'disabled title="El informe ya fue enviado"' : ''}>Registrar actividad</button>
+        </div>
+      </div>
+      ${acts.length ? `<ul class="acts">${acts.map((a) => `
+        <li class="act">${a.fotos[0] ? `<img src="${a.fotos[0]}" alt="Evidencia: ${esc(a.titulo)}">` : '<span class="thumb"></span>'}
+          <div><h4>${esc(a.titulo)}</h4><p>${esc(a.descripcion)}</p>
+          <div class="act-meta"><span>${fmtDate(a.fecha)}</span><span>${esc(pname(a.param))}</span><span>${fmtNum(a.participantes)} participantes</span><span>${a.fotos.length} foto${a.fotos.length === 1 ? '' : 's'}</span></div></div></li>`).join('')}</ul>`
+      : '<div class="empty">Todavía no hay actividades en este parámetro. Registra la primera con su foto de evidencia.</div>'}
+    </section>`;
+
+  $('view').innerHTML = `
+    <div class="grid">${resumen}
+      <div class="stack">
+        <div class="filters" role="tablist">
+          <button type="button" class="${ui.tab === 'trabajo' ? 'on' : ''}" data-tab="trabajo">Registro del año</button>
+          <button type="button" class="${ui.tab === 'informe' ? 'on' : ''}" data-tab="informe">Informe final</button>
+        </div>
+        ${ui.tab === 'trabajo' ? trabajo : renderInforme(c, { forComite: true })}
+      </div>
+    </div>`;
+
+  $('sel-comite').onchange = (e) => { ui.comite = e.target.value; ui.filtro = null; render(); };
+  document.querySelectorAll('[data-param]').forEach((b) => { b.onclick = () => { ui.filtro = ui.filtro === b.dataset.param ? null : b.dataset.param; render(); }; });
+  document.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { ui.tab = b.dataset.tab; render(); }; });
+  $('clear-filter')?.addEventListener('click', () => { ui.filtro = null; render(); });
+  $('new-act')?.addEventListener('click', () => openActivityForm(c));
+  $('send-report')?.addEventListener('click', () => confirmSend(c));
+}
+
+// ---------- Informe final (se arma solo) ----------
+function renderInforme(c, { forComite = false, scoring = false } = {}) {
+  const cov = coverage(c);
+  const totalPart = c.actividades.reduce((s, a) => s + Number(a.participantes || 0), 0);
+  const faltan = cov.rows.filter((r) => r.pct < 1);
+  return `
+    <article class="doc" id="informe">
+      <div class="doc-cover">
+        <div class="eyebrow">Informe final · Programa Bandera Azul Ecológica · Periodo ${PERIODO}</div>
+        <h2>${esc(c.nombre)}</h2>
+        <dl>
+          <dt>Categoría</dt><dd>${esc(cat(c).nombre)}</dd>
+          <dt>Ubicación</dt><dd>${esc(c.canton)}, ${esc(c.provincia)}</dd>
+          <dt>Responsable</dt><dd>${esc(c.coordinador)}</dd>
+          <dt>Estado</dt><dd>${ESTADOS[c.estado]}${c.enviado ? ` (${fmtDate(c.enviado)})` : ''}</dd>
+        </dl>
+      </div>
+      <h3 style="font-size:20px;margin-bottom:8px">Resumen por parámetro</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Parámetro</th><th class="n">Peso</th><th class="n">Actividades</th><th class="n">Participantes</th><th class="n">Cobertura</th></tr></thead>
+        <tbody>${cov.rows.map((r) => `<tr><td>${esc(r.nombre)}</td><td class="n">${r.peso}%</td><td class="n">${r.n}</td><td class="n">${fmtNum(r.participantes)}</td><td class="n">${Math.round(r.pct * 100)}%</td></tr>`).join('')}
+          <tr><td><strong>Total</strong></td><td class="n">100%</td><td class="n"><strong>${c.actividades.length}</strong></td><td class="n"><strong>${fmtNum(totalPart)}</strong></td><td class="n"><strong>${Math.round(cov.total * 100)}%</strong></td></tr></tbody>
+      </table></div>
+      ${forComite && c.estado === 'curso' ? `<div class="result" style="margin-top:16px">
+        ${faltan.length ? `<p class="small" style="margin:0 0 10px">Antes de enviar, conviene completar: ${faltan.map((r) => esc(r.nombre)).join(', ')}.</p>` : '<p class="small pass" style="margin:0 0 10px">Todos los parámetros tienen evidencia suficiente.</p>'}
+        <button type="button" class="btn good" id="send-report">Enviar informe al programa</button></div>` : ''}
+      ${scoring ? '' : cov.rows.map((r) => `
+        <section class="doc-section"><h3>${esc(r.nombre)} <span class="small muted num">${r.n} actividad${r.n === 1 ? '' : 'es'}</span></h3>
+          ${r.acts.length ? r.acts.sort((a, b) => a.fecha.localeCompare(b.fecha)).map((a) => `
+            <div class="doc-act"><h4>${esc(a.titulo)}</h4><div class="small muted">${fmtDate(a.fecha)} · ${esc(a.responsable)} · ${fmtNum(a.participantes)} participantes</div>
+              <p>${esc(a.descripcion)}</p>${a.fotos.length ? `<div class="photos">${a.fotos.map((f) => `<img src="${f}" alt="Evidencia: ${esc(a.titulo)}">`).join('')}</div>` : ''}</div>`).join('')
+          : '<p class="small muted">Sin actividades registradas.</p>'}
+        </section>`).join('')}
+    </article>`;
+}
+
+function confirmSend(c) {
+  openModal(`<h3>¿Enviar el informe final?</h3>
+    <p>Después de enviarlo ya no se pueden agregar actividades de ${PERIODO}. El programa lo revisará y calificará en línea.</p>
+    <div class="btn-row"><button type="button" class="btn good" id="m-ok">Enviar informe</button><button type="button" class="btn ghost" data-close>Cancelar</button></div>`);
+  $('m-ok').onclick = () => {
+    c.estado = 'enviado';
+    c.enviado = new Date().toISOString().slice(0, 10);
+    save();
+    closeModal();
+    toast('Informe enviado. Aparece en la bandeja de evaluación.');
+    render();
+  };
+}
+
+// ---------- Registrar actividad ----------
+function openActivityForm(c) {
+  const params = cat(c).params.map(([id, nombre]) => `<option value="${id}" ${ui.filtro === id ? 'selected' : ''}>${esc(nombre)}</option>`).join('');
+  openModal(`<form id="act-form"><h3>Registrar actividad</h3>
+    <label class="field">Parámetro<select id="f-param">${params}</select></label>
+    <label class="field">Nombre de la actividad<input id="f-titulo" required maxlength="80" placeholder="Ej.: Limpieza del río"></label>
+    <label class="field">Qué se hizo y qué se logró<textarea id="f-desc" rows="3" required maxlength="400" placeholder="Ej.: Se recolectaron 60 kg de residuos en 800 m de orilla."></textarea></label>
+    <div class="two">
+      <label class="field">Fecha<input id="f-fecha" type="date" required value="${new Date().toISOString().slice(0, 10)}" min="${PERIODO}-01-01" max="${PERIODO}-12-31"></label>
+      <label class="field">Participantes<input id="f-part" type="number" min="1" required value="10"></label>
+    </div>
+    <label class="field">Responsable<input id="f-resp" required maxlength="60" placeholder="Ej.: Comisión de residuos"></label>
+    <label class="field">Fotos de evidencia (hasta 4)<input id="f-fotos" type="file" accept="image/*" multiple></label>
+    <div class="previews" id="f-prev"></div>
+    <p class="error" id="f-err"></p>
+    <div class="btn-row"><button type="submit" class="btn primary">Guardar actividad</button><button type="button" class="btn ghost" data-close>Cancelar</button></div>
+  </form>`);
+  let fotos = [];
+  $('f-fotos').onchange = async (e) => {
+    const files = [...e.target.files].slice(0, 4);
+    $('f-err').textContent = 'Preparando fotos…';
+    fotos = (await Promise.all(files.map(shrink))).filter(Boolean);
+    $('f-prev').innerHTML = fotos.map((f) => `<img src="${f}" alt="">`).join('');
+    $('f-err').textContent = fotos.length < files.length ? 'Alguna foto no se pudo leer.' : '';
+  };
+  $('act-form').onsubmit = (e) => {
+    e.preventDefault();
+    const fecha = $('f-fecha').value;
+    if (!fecha.startsWith(String(PERIODO))) { $('f-err').textContent = `La fecha debe ser del periodo ${PERIODO}.`; return; }
+    c.actividades.push({
+      id: Math.random().toString(36).slice(2, 10), param: $('f-param').value, fecha, titulo: $('f-titulo').value.trim(),
+      descripcion: $('f-desc').value.trim(), participantes: Number($('f-part').value), responsable: $('f-resp').value.trim(), fotos,
+    });
+    if (!save()) { c.actividades.pop(); return; }
+    closeModal();
+    ui.filtro = null;
+    toast(fotos.length ? 'Actividad guardada con su evidencia.' : 'Actividad guardada. Agrega fotos para que cuente como evidencia.');
+    render();
+  };
+}
+
+/** Reduce una foto a 900 px (JPEG) para que pese poco. */
+function shrink(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, 900 / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * s);
+      cv.height = Math.round(img.height * s);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      resolve(cv.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+// ---------- Vista de evaluación (personal del programa) ----------
+function renderEval() {
+  if (ui.evalId) { renderEvalDetail(comite(ui.evalId)); return; }
+  const cs = data.comites;
+  const env = cs.filter((c) => c.estado === 'enviado').length;
+  const evald = cs.filter((c) => c.estado === 'evaluado');
+  const gal = evald.filter((c) => evalResult(c).estrellas > 0).length;
+  const porCat = Object.entries(CATEGORIAS).map(([id, k]) => [k.nombre, cs.filter((c) => c.categoria === id).length]);
+  const max = Math.max(1, ...porCat.map((x) => x[1]));
+  const lista = cs.filter((c) => ui.evalFiltro === 'todos' || c.estado === ui.evalFiltro);
+  $('view').innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><span class="num">${cs.length}</span><span class="small muted">Comités inscritos</span></div>
+      <div class="kpi"><span class="num">${env}</span><span class="small muted">Informes por evaluar</span></div>
+      <div class="kpi"><span class="num">${evald.length}</span><span class="small muted">Evaluados</span></div>
+      <div class="kpi"><span class="num">${gal}</span><span class="small muted">Con galardón</span></div>
+    </div>
+    <div class="grid">
+      <aside class="panel"><div class="eyebrow" style="margin-bottom:10px">Comités por categoría</div>
+        <div class="cat-bars">${porCat.map(([n, v]) => `<div class="cat-row"><span>${esc(n)}</span><span class="bar"><span style="width:${(v / max) * 100}%"></span></span><span class="num">${v}</span></div>`).join('')}</div>
+        <p class="small muted" style="margin:14px 0 0">Con todo el país en la plataforma, aquí se ve en tiempo real cuántos comités avanzan, por región y categoría.</p>
+      </aside>
+      <section class="panel" style="min-width:0">
+        <div class="section-head"><h3>Bandeja de informes</h3>
+          <div class="filters">${[['enviado', 'Por evaluar'], ['evaluado', 'Evaluados'], ['curso', 'En curso'], ['todos', 'Todos']].map(([k, n]) => `<button type="button" data-ef="${k}" class="${ui.evalFiltro === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Comité</th><th>Categoría</th><th>Ubicación</th><th class="n">Cobertura</th><th>Estado</th></tr></thead>
+          <tbody>${lista.map((c) => {
+            const r = evalResult(c);
+            return `<tr><td><button type="button" class="row-btn" data-open="${c.id}">${esc(c.nombre)}</button></td><td>${esc(cat(c).nombre)}</td><td>${esc(c.canton)}</td>
+              <td class="n">${Math.round(coverage(c).total * 100)}%</td><td><span class="chip state-${c.estado}">${ESTADOS[c.estado]}${r ? ` · ${r.nota.toFixed(0)}` : ''}</span></td></tr>`;
+          }).join('') || '<tr><td colspan="5" class="muted">No hay informes en este estado.</td></tr>'}</tbody>
+        </table></div>
+      </section>
+    </div>`;
+  document.querySelectorAll('[data-ef]').forEach((b) => { b.onclick = () => { ui.evalFiltro = b.dataset.ef; render(); }; });
+  document.querySelectorAll('[data-open]').forEach((b) => { b.onclick = () => { ui.evalId = b.dataset.open; render(); window.scrollTo(0, 0); }; });
+}
+
+function renderEvalDetail(c) {
+  const ps = cat(c).params;
+  const ev = c.evaluacion || {};
+  const editable = c.estado !== 'curso';
+  $('view').innerHTML = `
+    <button type="button" class="back" id="back">‹ Volver a la bandeja</button>
+    <div class="grid">
+      <aside class="panel">
+        <div class="eyebrow">Calificación por parámetro</div>
+        ${editable ? '' : '<p class="small muted">Este comité todavía no envía su informe.</p>'}
+        <form id="score-form">${ps.map(([id, nombre, peso]) => `
+          <div class="score-row"><label for="s-${id}"><strong>${esc(nombre)}</strong><br><span class="small muted">Peso ${peso}%</span></label>
+            <input id="s-${id}" type="number" min="0" max="100" step="1" value="${ev[id]?.[0] ?? ''}" placeholder="0–100" ${editable ? '' : 'disabled'}>
+            <textarea id="c-${id}" placeholder="Observación (opcional)" ${editable ? '' : 'disabled'}>${esc(ev[id]?.[1] || '')}</textarea></div>`).join('')}
+          <div class="result" id="score-result"></div>
+          <div class="btn-row" style="margin-top:12px"><button type="submit" class="btn primary" ${editable ? '' : 'disabled'}>Guardar evaluación</button></div>
+          <p class="small muted">Regla de ejemplo: 90 o más obtiene el galardón; cada 2 puntos sobre 90 suma una estrella.</p>
+        </form>
+      </aside>
+      <div class="stack">${renderInforme(c)}</div>
+    </div>`;
+  $('back').onclick = () => { ui.evalId = null; render(); };
+  const calc = () => {
+    let sum = 0; let w = 0; let missing = 0;
+    for (const [id, , peso] of ps) {
+      const v = $(`s-${id}`).value;
+      if (v === '') missing += 1;
+      sum += Math.max(0, Math.min(100, Number(v || 0))) * peso;
+      w += peso;
+    }
+    const nota = sum / w;
+    const estrellas = nota >= 90 ? Math.min(5, 1 + Math.floor((nota - 90) / 2)) : 0;
+    $('score-result').innerHTML = `<div class="eyebrow">Nota ponderada</div><div class="num">${nota.toFixed(1)}</div>`
+      + (missing ? `<div class="small muted">Faltan ${missing} parámetro${missing === 1 ? '' : 's'} por calificar</div>`
+        : estrellas ? `<div class="stars" aria-label="${estrellas} estrellas">${'★'.repeat(estrellas)}</div><div class="pass">Obtiene el galardón</div>` : '<div class="fail">No alcanza el galardón</div>');
+    return missing;
+  };
+  ps.forEach(([id]) => { $(`s-${id}`).oninput = calc; });
+  calc();
+  $('score-form').onsubmit = (e) => {
+    e.preventDefault();
+    if (calc()) { toast('Califica todos los parámetros antes de guardar.'); return; }
+    c.evaluacion = Object.fromEntries(ps.map(([id]) => [id, [Math.max(0, Math.min(100, Number($(`s-${id}`).value))), $(`c-${id}`).value.trim()]]));
+    c.estado = 'evaluado';
+    save();
+    toast('Evaluación guardada. El comité ya ve su resultado.');
+    ui.evalId = null;
+    ui.evalFiltro = 'evaluado';
+    render();
+  };
+}
+
+// ---------- Ventana modal ----------
+function openModal(html) {
+  $('modal').innerHTML = `<div class="modal-box" role="dialog" aria-modal="true">${html}</div>`;
+  $('modal').hidden = false;
+  $('modal').querySelector('input, select, textarea, button')?.focus();
+}
+function closeModal() { $('modal').hidden = true; $('modal').innerHTML = ''; }
+$('modal').addEventListener('click', (e) => { if (e.target === $('modal') || e.target.closest('[data-close]')) closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('modal').hidden) closeModal(); });
+
+// ---------- Navegación ----------
+function render() {
+  $('role-comite').classList.toggle('on', ui.role === 'comite');
+  $('role-eval').classList.toggle('on', ui.role === 'eval');
+  if (ui.role === 'comite') renderComite(); else renderEval();
+}
+$('role-comite').onclick = () => { ui.role = 'comite'; render(); };
+$('role-eval').onclick = () => { ui.role = 'eval'; ui.evalId = null; render(); };
+render();
+</script>
+</body>
+</html>
