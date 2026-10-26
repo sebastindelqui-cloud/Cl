@@ -292,3 +292,25 @@ a { color: var(--blue); }
 
 .dep { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; margin-right: 10px; }
 .timeline .what span.badge { display: inline-flex; }
+
+/* Selector de mapa */
+.styles-pop {
+  position: absolute; z-index: 1200; right: max(70px, calc(env(safe-area-inset-right, 0px) + 70px));
+  bottom: calc(var(--sheet-h, var(--sheet-half)) + 12px);
+  width: min(320px, calc(100vw - 90px)); background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 10px 12px 12px;
+}
+.styles-pop .h3 { margin: 2px 0 8px; }
+.style-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.style-opt { display: grid; gap: 2px; justify-items: center; border: 0; background: none; padding: 0; text-align: center; }
+.style-prev { width: 100%; aspect-ratio: 1; max-width: 84px; border-radius: 12px; border: 2px solid var(--line); background-size: cover; }
+.style-opt.active .style-prev { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue); }
+.style-opt[data-locked] .style-prev { filter: grayscale(.8); opacity: .55; }
+.style-name { font-size: 12px; font-weight: 700; line-height: 1.2; }
+.style-sub { font-size: 11px; color: var(--muted); line-height: 1.2; }
+.prev-google-road { background: linear-gradient(135deg, #e8eaed 0 40%, #ffffff 40% 46%, #e8eaed 46% 70%, #fbbc04 70% 74%, #c8e6c9 74%); }
+.prev-google-sat { background: linear-gradient(135deg, #2e4a2c, #4f6b3a 45%, #f2f2f2 45% 48%, #3b5b37 48%, #6b7d4a); }
+.prev-osm { background: linear-gradient(135deg, #f2efe9 0 35%, #f9b29c 35% 41%, #f2efe9 41% 65%, #aad3df 65%); }
+.prev-carto { background: linear-gradient(135deg, #f6f5f2 0 45%, #ffffff 45% 50%, #f6f5f2 50% 70%, #d5e8d4 70%); }
+.prev-carto-dark { background: linear-gradient(135deg, #1f2430 0 45%, #3b4252 45% 50%, #262b36 50% 72%, #1b2533 72%); }
+.prev-esri-sat { background: linear-gradient(135deg, #24391f, #47603a 40%, #b9a77a 40% 44%, #355029 44%, #5d7144); }
+@media (min-width: 900px) { .styles-pop { bottom: 28px; right: 80px; } }

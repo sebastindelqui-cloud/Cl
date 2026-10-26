@@ -1,9 +1,9 @@
 // Mapa de Ruta CR: una sola interfaz para dos proveedores.
 //
 // - Google Maps (mapa y satélite) cuando hay una clave de Google Maps.
-// - Respaldo sin clave: Leaflet con OpenStreetMap (mapa) y Esri (satélite).
+// - Sin clave: Leaflet con OpenStreetMap, CARTO (claro y oscuro) o satélite de Esri.
 //
-// La app solo usa: setType, setView, fitBounds, getZoom, addLine, addMarker.
+// La app solo usa: setStyle, setView, fitBounds, getZoom, addLine, addMarker, destroy.
 
 /** Ícono de parada al estilo de Costa Rica: rótulo azul con el bus en blanco. */
 export function stopSvg(size = 26, highlighted = false) {
@@ -74,7 +74,8 @@ async function createGoogle(el, { key, center, zoom, onClick, onZoom }) {
   const toLL = ([lat, lng]) => ({ lat, lng });
   return {
     provider: 'google',
-    setType(type) { map.setMapTypeId(type === 'satellite' ? 'hybrid' : 'roadmap'); },
+    setStyle(id) { map.setMapTypeId(id === 'google-sat' ? 'hybrid' : 'roadmap'); },
+    destroy() { el.innerHTML = ''; },
     setView(ll, z) { map.panTo(toLL(ll)); if (z) map.setZoom(z); },
     fitBounds(points, pad = 48) {
       if (!points.length) return;
@@ -104,33 +105,58 @@ async function createGoogle(el, { key, center, zoom, onClick, onZoom }) {
   };
 }
 
-// ---------- Respaldo: Leaflet ----------
+// ---------- Mapas gratuitos: Leaflet ----------
 
-function createLeaflet(el, { center, zoom, onClick, onZoom }) {
+/** Estilos de mapa que se pueden elegir en la app. */
+export const STYLES = [
+  { id: 'google-road', name: 'Google Maps', sub: 'Mapa', provider: 'google', type: 'roadmap' },
+  { id: 'google-sat', name: 'Google Maps', sub: 'Satélite', provider: 'google', type: 'hybrid' },
+  { id: 'osm', name: 'OpenStreetMap', sub: 'Mapa detallado', provider: 'leaflet' },
+  { id: 'carto', name: 'Claro', sub: 'Mapa limpio', provider: 'leaflet' },
+  { id: 'carto-dark', name: 'Oscuro', sub: 'Para la noche', provider: 'leaflet' },
+  { id: 'esri-sat', name: 'Satélite', sub: 'Imágenes Esri', provider: 'leaflet' },
+];
+
+function leafletBase(id) {
+  const L = window.L;
+  const carto = (v) => L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${v}/{z}/{x}/{y}{r}.png`, {
+    maxZoom: 20, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO',
+  });
+  if (id === 'carto') return carto('voyager');
+  if (id === 'carto-dark') return L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 20, subdomains: 'abcd', attribution: '© OpenStreetMap © CARTO' });
+  if (id === 'esri-sat') {
+    return L.layerGroup([
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19, attribution: 'Imágenes © Esri, Maxar, Earthstar Geographics',
+      }),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
+    ]);
+  }
+  return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+}
+
+function createLeaflet(el, { center, zoom, style = 'osm', onClick, onZoom }) {
   const L = window.L;
   const map = L.map(el, { zoomControl: false, attributionControl: true, preferCanvas: true }).setView(center, zoom);
-  const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap',
-  });
-  const sat = L.layerGroup([
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19, attribution: 'Imágenes © Esri, Maxar, Earthstar Geographics',
-    }),
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }),
-  ]);
-  streets.addTo(map);
+  let base = null;
   let tileErrors = 0;
-  streets.on('tileerror', () => { if (++tileErrors === 4) el.classList.add('no-tiles'); });
-  streets.on('tileload', () => el.classList.remove('no-tiles'));
+  const setBase = (id) => {
+    if (base) map.removeLayer(base);
+    base = leafletBase(id).addTo(map);
+    tileErrors = 0;
+    const layers = base.getLayers ? base.getLayers() : [base];
+    layers[0].on('tileerror', () => { if (++tileErrors === 4) el.classList.add('no-tiles'); });
+    layers[0].on('tileload', () => el.classList.remove('no-tiles'));
+  };
+  setBase(style);
   map.on('click', (e) => onClick?.({ lat: e.latlng.lat, lng: e.latlng.lng }));
   map.on('zoomend', () => onZoom?.(map.getZoom()));
   return {
     provider: 'leaflet',
     leaflet: map,
-    setType(type) {
-      if (type === 'satellite') { map.removeLayer(streets); sat.addTo(map); } else { map.removeLayer(sat); streets.addTo(map); }
-    },
+    setStyle(id) { setBase(id); },
+    destroy() { map.remove(); },
     setView(ll, z) { map.setView(ll, z ?? map.getZoom()); },
     fitBounds(points, pad = 48) {
       if (!points.length) return;
@@ -154,15 +180,26 @@ function createLeaflet(el, { center, zoom, onClick, onZoom }) {
   };
 }
 
-/** Crea el mapa. Si hay clave intenta Google Maps; si falla, usa el respaldo. */
+/**
+ * Crea el mapa con el estilo pedido. Los estilos de Google necesitan clave;
+ * si no hay o falla, se usa OpenStreetMap (y se avisa con onFallback).
+ */
 export async function createMap(el, opts) {
-  if (opts.key) {
-    try {
-      return await createGoogle(el, opts);
-    } catch (e) {
-      opts.onFallback?.(e.message);
-      el.innerHTML = '';
+  const style = STYLES.find((s) => s.id === opts.style) || STYLES[2];
+  if (style.provider === 'google') {
+    if (opts.key) {
+      try {
+        const m = await createGoogle(el, opts);
+        m.setStyle(style.id);
+        return m;
+      } catch (e) {
+        opts.onFallback?.(e.message);
+      }
+    } else {
+      opts.onFallback?.('Para usar Google Maps falta la clave (en Ajustes).');
     }
+    el.innerHTML = '';
+    return createLeaflet(el, { ...opts, style: 'osm' });
   }
-  return createLeaflet(el, opts);
+  return createLeaflet(el, { ...opts, style: style.id });
 }

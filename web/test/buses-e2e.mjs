@@ -96,9 +96,15 @@ try {
   await page.waitForFunction(() => window.rutaCR.state.to && window.rutaCR.state.to.kind === 'place');
   await page.waitForSelector('#view-results:not([hidden])');
 
-  // 7. Satélite.
+  // 7. Elegir el tipo de mapa: satélite, y Google pide la clave.
   await page.click('#layers');
-  assert.ok(await page.locator('#layers.active').count());
+  await page.click('[data-style="esri-sat"]');
+  assert.equal(await page.evaluate(() => window.rutaCR.state.mapStyle), 'esri-sat');
+  assert.ok(await page.locator('[data-style="google-road"][data-locked]').count());
+  await page.click('[data-style="carto"]');
+  assert.equal(await page.evaluate(() => window.rutaCR.state.mapStyle), 'carto');
+  await shot(page, '6-tipos-de-mapa');
+  await page.click('#layers');
 
   // 8. Computadora: el panel queda a la izquierda.
   await page.setViewportSize({ width: 1280, height: 800 });

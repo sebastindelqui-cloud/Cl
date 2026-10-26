@@ -5,7 +5,7 @@ import {
   planOptions, nextDepartures, routesAtStop, routeTimetable, stopsNear, distanceM, seniorFactor,
   formatClock, formatDuration, formatDistance, formatColones, formatIn, tripText,
 } from './buses-core.js';
-import { createMap, stopSvg, stopDotSvg, pinSvg, meSvg } from './buses-map.js';
+import { createMap, STYLES, stopSvg, stopDotSvg, pinSvg, meSvg } from './buses-map.js';
 import { GOOGLE_MAPS_API_KEY } from './config.js';
 
 const $ = (id) => document.getElementById(id);
@@ -16,7 +16,7 @@ const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 
 // ---------- Guardado local ----------
 
-const KEY = { favs: 'rutacr.favs', recent: 'rutacr.recent', senior: 'rutacr.senior', gkey: 'rutacr.gkey', type: 'rutacr.maptype' };
+const KEY = { favs: 'rutacr.favs', recent: 'rutacr.recent', senior: 'rutacr.senior', gkey: 'rutacr.gkey', style: 'rutacr.mapstyle' };
 function load(k, fallback) {
   try { const v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); } catch { return fallback; }
 }
@@ -35,7 +35,8 @@ const state = {
   senior: load(KEY.senior, false),
   favs: load(KEY.favs, []),
   recent: load(KEY.recent, []),
-  mapType: load(KEY.type, 'roadmap'),
+  mapStyle: null,
+  routeId: null,
   history: [],
 };
 
@@ -213,7 +214,8 @@ function sliceShape(p, a, b) {
   return [[A.lat, A.lng], ...p.shape.slice(ia, ib + 1), [B.lat, B.lng]];
 }
 
-function drawRoute(routeId) {
+function drawRoute(routeId, { fit = true } = {}) {
+  state.routeId = routeId;
   clearTrip();
   clearLayer(layers.stops);
   const pts = [];
@@ -230,7 +232,7 @@ function drawRoute(routeId) {
       layers.route.push(state.map.addMarker([s.lat, s.lng], { svg: stopDotSvg(r.color), size: [12, 12], anchor: [6, 6], z: 6, title: s.name, onClick: () => openStop(si) }));
     }
   }
-  state.map.fitBounds(pts, mapPad());
+  if (fit) state.map.fitBounds(pts, mapPad());
 }
 
 // ---------- Ubicación ----------
@@ -700,18 +702,78 @@ for (const b of document.querySelectorAll('.segmented button')) {
   });
 }
 
-function applyMapType() {
-  state.map.setType(state.mapType);
-  $('layers').classList.toggle('active', state.mapType === 'satellite');
-  $('layers').setAttribute('aria-label', state.mapType === 'satellite' ? 'Ver mapa' : 'Ver satélite');
+// Selector de mapa: Google (con clave), OpenStreetMap, claro, oscuro o satélite.
+
+function renderStyles() {
+  const hasKey = !!googleKey();
+  $('style-grid').innerHTML = STYLES.map((s) => {
+    const locked = s.provider === 'google' && !hasKey;
+    return `<button type="button" class="style-opt ${s.id === state.mapStyle ? 'active' : ''}" data-style="${s.id}" ${locked ? 'data-locked="1"' : ''}>`
+      + `<span class="style-prev prev-${s.id}"></span><span class="style-name">${esc(s.name)}</span>`
+      + `<span class="style-sub">${locked ? 'Necesita clave' : esc(s.sub)}</span></button>`;
+  }).join('');
 }
 
-$('layers').addEventListener('click', () => {
-  state.mapType = state.mapType === 'satellite' ? 'roadmap' : 'satellite';
-  save(KEY.type, state.mapType);
-  applyMapType();
-  toast(state.mapType === 'satellite' ? 'Vista satélite' : 'Vista de mapa', 1200);
+$('layers').addEventListener('click', (e) => {
+  e.stopPropagation();
+  renderStyles();
+  $('styles').hidden = !$('styles').hidden;
 });
+document.addEventListener('click', (e) => { if (!$('styles').hidden && !e.target.closest('#styles')) $('styles').hidden = true; });
+
+$('style-grid').addEventListener('click', async (e) => {
+  e.stopPropagation(); // se vuelve a dibujar la lista: que el clic no cierre el selector
+  const b = e.target.closest('[data-style]');
+  if (!b) return;
+  if (b.dataset.locked) {
+    $('styles').hidden = true;
+    openSettings();
+    toast('Pega tu clave de Google Maps para usar el mapa de Google.', 4000);
+    return;
+  }
+  await setMapStyle(b.dataset.style);
+  renderStyles();
+});
+
+async function setMapStyle(id) {
+  const next = STYLES.find((s) => s.id === id);
+  const cur = STYLES.find((s) => s.id === state.mapStyle);
+  state.mapStyle = id;
+  save(KEY.style, id);
+  if (cur && cur.provider === next.provider) state.map.setStyle(id);
+  else await buildMap();
+  $('layers').classList.toggle('active', id !== 'osm' && id !== 'google-road');
+}
+
+/** Crea (o vuelve a crear) el mapa con el estilo elegido y redibuja todo encima. */
+async function buildMap() {
+  const old = state.map;
+  const center = old ? old.getCenter() : CENTER;
+  const zoom = old ? old.getZoom() : 12;
+  if (old) old.destroy();
+  layers.stops = [];
+  layers.trip = [];
+  layers.route = [];
+  layers.pins = {};
+  layers.me = null;
+  stopMode = '';
+  state.map = await createMap($('map'), {
+    key: googleKey(),
+    style: state.mapStyle,
+    center,
+    zoom,
+    onClick: onMapClick,
+    onZoom: () => { if (!layers.trip.length && !layers.route.length) drawStops(); },
+    onFallback: (msg) => { toast(`${msg} Se usa OpenStreetMap.`, 6000); state.mapStyle = 'osm'; },
+  });
+  if (state.from) setPin('from', state.from);
+  if (state.to) setPin('to', state.to);
+  if (state.me) setMe(state.me);
+  if (!$('view-trip').hidden && state.selected) drawTrip(state.selected, { fit: false });
+  else if (!$('view-results').hidden && state.options[0]) drawTrip(state.options[0], { fit: false });
+  else if (!$('view-route').hidden && state.routeId) drawRoute(state.routeId, { fit: false });
+  else drawStops();
+}
 
 function googleKey() {
   return load(KEY.gkey, '') || GOOGLE_MAPS_API_KEY || '';
@@ -722,7 +784,7 @@ function openSettings() {
   $('set-key').value = load(KEY.gkey, '');
   $('map-status').textContent = state.map.provider === 'google'
     ? 'Usando Google Maps.'
-    : 'Ahora se usa un mapa gratuito (OpenStreetMap / Esri). Con una clave de Google se ve el mapa de Google.';
+    : 'Ahora se usa un mapa gratuito. Con una clave de Google puedes elegir el mapa de Google (normal o satélite) en el botón de capas.';
   const s = state.net.source;
   $('data-info').innerHTML = `Rutas, paradas, horarios y tarifas de ${esc(state.net.agencies.map((a) => a.name).join(', '))}, en formato GTFS publicado por `
     + `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.publisher)}</a> (Universidad de Costa Rica), versión ${esc(s.version)}. `
@@ -740,24 +802,19 @@ $('set-senior').addEventListener('change', () => {
 });
 $('settings-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  save(KEY.gkey, $('set-key').value.trim());
+  const key = $('set-key').value.trim();
+  save(KEY.gkey, key);
+  if (key) save(KEY.style, 'google-road');
   location.reload();
 });
-$('set-key-clear').addEventListener('click', () => { save(KEY.gkey, ''); location.reload(); });
+$('set-key-clear').addEventListener('click', () => { save(KEY.gkey, ''); save(KEY.style, 'osm'); location.reload(); });
 
 // ---------- Arranque ----------
 
 async function start() {
   state.net = await (await fetch('data/cr-network.json')).json();
-  state.map = await createMap($('map'), {
-    key: googleKey(),
-    center: CENTER,
-    zoom: 12,
-    onClick: onMapClick,
-    onZoom: () => { if (!layers.trip.length && !layers.route.length) drawStops(); },
-    onFallback: (msg) => toast(`${msg} Se usa el mapa gratuito.`, 6000),
-  });
-  applyMapType();
+  state.mapStyle = load(KEY.style, null) || (googleKey() ? 'google-road' : 'osm');
+  await buildMap();
   setSheet('half');
   initWhen();
   drawStops();

@@ -46,12 +46,16 @@
 
     <!-- Botones flotantes -->
     <div class="fabs" id="fabs">
-      <button type="button" class="fab" id="layers" aria-label="Ver satélite" title="Mapa / Satélite">
+      <button type="button" class="fab" id="layers" aria-label="Tipo de mapa" title="Tipo de mapa">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="m12 3 9 5-9 5-9-5zm-7.3 8.6L12 15.7l7.3-4.1L21 12.5l-9 5-9-5zm0 4L12 19.7l7.3-4.1L21 16.5l-9 5-9-5z"/></svg>
       </button>
       <button type="button" class="fab" id="locate" aria-label="Mi ubicación" title="Mi ubicación">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 3h-2.1A7 7 0 0 0 13 5.1V3h-2v2.1A7 7 0 0 0 5.1 11H3v2h2.1a7 7 0 0 0 5.9 5.9V21h2v-2.1a7 7 0 0 0 5.9-5.9H21zm-9 6a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
       </button>
+    </div>
+    <div id="styles" class="styles-pop" hidden>
+      <div class="h3">Tipo de mapa</div>
+      <div class="style-grid" id="style-grid"></div>
     </div>
     <div id="toast" class="toast" role="status" hidden></div>
 
