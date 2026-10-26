@@ -191,11 +191,13 @@ export function convertOsm(routesJson, stopsJson, { skipOperators = /san gabriel
 
     if (!routes.has(routeKey)) {
       const id = `osm${rel.id}`;
-      const from = t.from || stops[seq[0]].name;
-      const to = t.to || stops[seq.at(-1)].name;
+      const realName = (i) => (stops[i].virtual ? '' : stops[i].name);
+      const from = t.from || realName(seq[0]);
+      const to = t.to || realName(seq.at(-1));
+      const long = name || (from && to ? `${from} – ${to}` : ref ? `Ruta ${ref}` : 'Ruta de bus');
       routes.set(routeKey, {
-        id, agency: t.operator || t.network || '', short: ref || (name.split(/[:\-–]/)[0].trim().slice(0, 14)) || 'Bus',
-        long: name || `${from} – ${to}`, desc: [t.operator, t.network].filter(Boolean).join(' · '),
+        id, agency: t.operator || t.network || '', short: ref.replace(/^(bus|ruta)\s+/i, '').slice(0, 10) || long.split(/[:\-–>]/)[0].trim().slice(0, 12),
+        long, desc: [t.operator, t.network].filter(Boolean).join(' · '),
         color: /^#[0-9a-f]{6}$/i.test(t.colour || '') ? t.colour : PALETTE[routes.size % PALETTE.length], text: '#ffffff',
         url: t.website || '', fare: parseCharge(t.charge), osm: rel.id, source: 'osm',
       });
@@ -212,11 +214,19 @@ export function convertOsm(routesJson, stopsJson, { skipOperators = /san gabriel
     const hours = parseHours(t.opening_hours) || { first: 5 * 60, last: 21 * 60 };
     const interval = parseInterval(t.interval);
     patterns.push({
-      id: `o${rel.id}`, route: route.id, headsign: t.to || stops[seq.at(-1)].name, direction: 0,
+      id: `o${rel.id}`, route: route.id, headsign: t.to || (stops[seq.at(-1)].virtual ? route.long : stops[seq.at(-1)].name), direction: 0,
       stops: seq, offsets, dist,
       shape: simplify(line, 0.00008).map(([a, b]) => [+a.toFixed(5), +b.toFixed(5)]),
       freq: { headway: interval || 30, first: hours.first, last: hours.last, estimated: !interval },
     });
+  }
+
+  // Las demás paradas de bus del país (aunque no tengan ruta cargada) también van al mapa.
+  for (const n of stopsJson.elements || []) {
+    if (n.type !== 'node' || n.lat == null || stopIdx.has(`n${n.id}`)) continue;
+    const t = n.tags || {};
+    if (t.public_transport === 'stop_position' && !t.name) continue; // marca de la calle, no la parada
+    addStop(n.id, n.lat, n.lon, t);
   }
 
   return {
