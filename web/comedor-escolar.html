@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="es-CR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Comedor Escolar Digital</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Herramienta de trabajo: barra fija con cambio de vista; la escuela ve tarjetas grandes para registrar rápido, el MEP ve un tablero. */
+:root {
+  --leaf: #1e6b52;      /* marca y acciones */
+  --tomato: #cf4f35;    /* faltantes, alertas */
+  --corn: #c98a06;      /* atrasos, pendientes */
+  --ok: #2e8a4f;        /* servicio normal */
+  --sky: #2b6cb0;       /* desayuno en gráficos */
+  --bg: #f3f6f4;
+  --surface: #ffffff;
+  --surface-2: #e8efeb;
+  --ink: #13241d;
+  --muted: #587063;
+  --line: #d5e1da;
+  --display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --body: "Nunito Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --shadow: 0 1px 2px rgba(19, 36, 29, .07), 0 8px 22px rgba(19, 36, 29, .07);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --leaf: #6fd3a8; --tomato: #ff8a70; --corn: #f4c04e; --ok: #63d18a; --sky: #8ab8ff;
+    --bg: #0c1511; --surface: #13211b; --surface-2: #1b2f26; --ink: #e6f1eb; --muted: #97b3a5; --line: #26402f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 22px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --leaf: #6fd3a8; --tomato: #ff8a70; --corn: #f4c04e; --ok: #63d18a; --sky: #8ab8ff;
+  --bg: #0c1511; --surface: #13211b; --surface-2: #1b2f26; --ink: #e6f1eb; --muted: #97b3a5; --line: #26402f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 22px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--leaf) 55%, transparent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--display); letter-spacing: -.015em; text-wrap: balance; margin: 0; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: #134a39; }
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: #134a39; color: #fff;
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.top-in { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 19px; }
+.plate { width: 28px; height: 28px; border-radius: 50%; background: #fff; position: relative; flex: none; }
+.plate::before { content: ""; position: absolute; inset: 5px; border-radius: 50%; border: 2px solid #1e6b52; }
+.plate::after { content: ""; position: absolute; left: 9px; top: 9px; width: 10px; height: 10px; border-radius: 50%; background: #cf4f35; }
+.proto { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: rgba(255,255,255,.16); padding: 3px 8px; border-radius: 6px; }
+.roles { margin-left: auto; display: flex; background: rgba(255,255,255,.14); border-radius: 10px; padding: 3px; }
+.roles button { border: 0; background: none; color: #fff; padding: 7px 12px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+.roles button.on { background: #fff; color: #134a39; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.notice { font-size: 14px; color: var(--muted); margin: 0 0 16px; max-width: 80ch; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); min-width: 0; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.between { justify-content: space-between; }
+.stack { display: grid; gap: 16px; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; padding: 10px 16px; font-weight: 700; }
+.btn.primary { background: var(--leaf); color: var(--bg); }
+.btn.ghost { background: var(--surface-2); color: var(--ink); }
+.btn.warn { background: var(--tomato); color: var(--bg); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tabs button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 14px; }
+.tabs button.on { background: var(--leaf); color: var(--bg); border-color: var(--leaf); }
+.tabs .badge { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 10px; background: var(--tomato); color: var(--bg); font-size: 12px; margin-left: 6px; padding: 0 5px; }
+
+select.big { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-weight: 700; max-width: 100%; }
+.school-head h2 { font-size: 24px; }
+
+/* Registro de hoy */
+.meals { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+.meal { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--surface); }
+.meal h3 { font-size: 17px; }
+.counter { display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; }
+.counter button { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); font-weight: 800; font-size: 18px; }
+.counter input { width: 100%; min-width: 0; text-align: center; font-family: var(--mono); font-size: 30px; font-weight: 700; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 4px; }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.quick button { border: 1px solid var(--line); background: none; border-radius: 8px; padding: 3px 9px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.pct { font-size: 14px; color: var(--muted); }
+.no-service { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.no-service label { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.no-service select { margin-top: 8px; padding: 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); width: 100%; }
+.saved { color: var(--ok); font-weight: 700; }
+
+/* Gráficos */
+.chart { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font-family: var(--mono); font-size: 11px; }
+.legend { display: flex; gap: 14px; font-size: 13px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+/* Entregas */
+.deliveries { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.delivery { border: 1px solid var(--line); border-left: 5px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--surface); display: grid; gap: 4px; }
+.delivery.pend { border-left-color: var(--corn); }
+.delivery.ok { border-left-color: var(--ok); }
+.delivery.bad { border-left-color: var(--tomato); }
+.chip { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); }
+.chip.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.chip.bad { background: color-mix(in srgb, var(--tomato) 16%, transparent); color: var(--tomato); }
+.chip.pend { background: color-mix(in srgb, var(--corn) 18%, transparent); color: var(--corn); }
+.items { font-size: 14px; color: var(--muted); }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+td.n, th.n { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.dot.ok { background: var(--ok); } .dot.pend { background: var(--corn); } .dot.bad { background: var(--tomato); }
+
+/* Tablero MEP */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+.kpi .num { display: block; font-size: 30px; font-weight: 700; color: var(--leaf); line-height: 1.2; }
+.kpi.alert .num { color: var(--tomato); }
+.kpi span:last-child { font-size: 14px; color: var(--muted); }
+.hbars { display: grid; gap: 8px; }
+.hbar { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 36px; gap: 10px; align-items: center; font-size: 14px; }
+.hbar .track { height: 12px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+.hbar .track span { display: block; height: 100%; border-radius: 6px; background: var(--tomato); }
+
+/* Informe */
+.report dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 12px 0; }
+.report dt { color: var(--muted); }
+.report dd { margin: 0; font-weight: 700; }
+
+/* Formulario */
+.modal { position: fixed; inset: 0; z-index: 50; background: rgba(6, 16, 12, .55); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.modal-box { width: min(600px, 100%); max-height: 100%; overflow-y: auto; background: var(--surface); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); }
+.modal-box h3 { font-size: 20px; margin-bottom: 4px; }
+.recv { width: 100%; border-collapse: collapse; margin: 12px 0; }
+.recv td { padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.recv input { width: 90px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); text-align: right; font-family: var(--mono); }
+.recv input.short { border-color: var(--tomato); }
+.field { display: grid; gap: 4px; margin-bottom: 12px; font-size: 14px; font-weight: 700; }
+.field select, .field textarea, .field input[type="file"] { padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); font-weight: 400; width: 100%; }
+.checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; margin-bottom: 12px; }
+.checks label { display: flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 14px; font-weight: 600; }
+.previews img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; margin: 4px 4px 0 0; }
+.toast { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 700; box-shadow: var(--shadow); max-width: calc(100% - 32px); }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <span class="brand"><span class="plate" aria-hidden="true"></span>Comedor Escolar Digital</span>
+    <span class="proto">Prototipo</span>
+    <nav class="roles" aria-label="Vista">
+      <button type="button" id="role-school" class="on">Escuela</button>
+      <button type="button" id="role-mep">MEP</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="notice">Prototipo independiente para el programa de comedores estudiantiles (PANEA). No es un sistema oficial del MEP. Escuelas, cifras y entregas son <strong>datos de demostración</strong>. Solo se registran conteos, nunca nombres de estudiantes. Los cambios se guardan solo en este navegador.</p>
+  <div id="view"></div>
+</main>
+<div id="modal" class="modal" hidden></div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+// ---------- Datos de demostración (generados con semilla para que siempre salgan iguales) ----------
+const ESCUELAS = [
+  { id: 'e1', nombre: 'Escuela La Ceiba', dre: 'San José Norte', benef: 420, asist: 0.9, servicio: 0.98 },
+  { id: 'e2', nombre: 'Escuela Río Frío', dre: 'Sarapiquí', benef: 180, asist: 0.86, servicio: 0.95 },
+  { id: 'e3', nombre: 'Liceo Los Almendros', dre: 'Heredia', benef: 650, asist: 0.8, servicio: 0.97 },
+  { id: 'e4', nombre: 'Escuela Valle Verde', dre: 'Limón', benef: 310, asist: 0.88, servicio: 0.93 },
+  { id: 'e5', nombre: 'Escuela Las Palmas', dre: 'Puntarenas', benef: 260, asist: 0.91, servicio: 0.97 },
+  { id: 'e6', nombre: 'Escuela Monte Claro', dre: 'Cartago', benef: 380, asist: 0.89, servicio: 0.99 },
+  { id: 'e7', nombre: 'Escuela San Rafael Arriba', dre: 'Pérez Zeledón', benef: 140, asist: 0.93, servicio: 0.96 },
+  { id: 'e8', nombre: 'Liceo Rural Santa Rosa', dre: 'Liberia', benef: 220, asist: 0.84, servicio: 0.95 },
+];
+const PRODUCTOS = [
+  ['Arroz', 'kg', 0.06], ['Frijoles', 'kg', 0.04], ['Pollo', 'kg', 0.05], ['Leche', 'L', 0.12],
+  ['Huevos', 'cartones', 0.012], ['Verduras', 'kg', 0.07], ['Frutas', 'kg', 0.06], ['Aceite', 'L', 0.006],
+];
+const MOTIVOS = ['Faltan alimentos', 'Falta personal de cocina', 'Sin agua o electricidad', 'Actividad o cierre del centro', 'Otro'];
+const PROBLEMAS = { faltante: 'Faltantes', atraso: 'Llegó tarde', calidad: 'Mala calidad', factura: 'Error en la factura' };
+
+function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const TODAY = iso(new Date());
+
+/** Días lectivos (lunes a viernes) hacia atrás desde hoy, sin incluir hoy. */
+function schoolDaysBefore(n) {
+  const out = [];
+  const d = new Date(`${TODAY}T12:00:00`);
+  while (out.length < n) {
+    d.setDate(d.getDate() - 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) out.unshift(iso(d));
+  }
+  return out;
+}
+const isWeekday = (isoDate) => { const g = new Date(`${isoDate}T12:00:00`).getDay(); return g !== 0 && g !== 6; };
+
+function demoData() {
+  const days = schoolDaysBefore(20);
+  const registros = {};
+  const entregas = [];
+  ESCUELAS.forEach((e, k) => {
+    const r = rng(1000 + k * 97);
+    registros[e.id] = {};
+    for (const day of days) {
+      if (r() > e.servicio) {
+        registros[e.id][day] = { sinServicio: MOTIVOS[Math.floor(r() * 3)] };
+      } else {
+        const alm = Math.round(e.benef * (e.asist - 0.06 + r() * 0.12));
+        registros[e.id][day] = { almuerzo: alm, desayuno: Math.round(alm * (0.45 + r() * 0.15)) };
+      }
+    }
+    // Hoy: algunas escuelas ya reportaron.
+    if (isWeekday(TODAY) && k % 3 !== 2) {
+      const alm = Math.round(e.benef * e.asist);
+      registros[e.id][TODAY] = { almuerzo: alm, desayuno: Math.round(alm * 0.5) };
+    }
+    // Entregas del CNP: una por semana (lunes), las últimas 4 recibidas y la de esta semana pendiente.
+    const mondays = [];
+    const d = new Date(`${TODAY}T12:00:00`);
+    while (d.getDay() !== 1) d.setDate(d.getDate() - 1);
+    for (let w = 0; w < 5; w += 1) { mondays.unshift(iso(d)); d.setDate(d.getDate() - 7); }
+    mondays.forEach((m, w) => {
+      const items = PRODUCTOS.map(([p, u, f]) => ({ producto: p, unidad: u, pedido: Math.max(1, Math.round(e.benef * 5 * f)) }));
+      const pend = w === mondays.length - 1;
+      const ent = { id: `${e.id}-${m}`, escuela: e.id, fecha: m, proveedor: 'CNP (ejemplo)', items, estado: pend ? 'pendiente' : 'completa', problemas: [], fotos: [], nota: '' };
+      if (!pend) {
+        ent.items.forEach((it) => { it.recibido = it.pedido; });
+        const x = r();
+        if (x < 0.22) { const it = ent.items[Math.floor(r() * ent.items.length)]; it.recibido = Math.round(it.pedido * 0.6); ent.problemas.push('faltante'); }
+        if (r() < 0.14) ent.problemas.push('atraso');
+        if (r() < 0.08) ent.problemas.push('calidad');
+        if (r() < 0.07) ent.problemas.push('factura');
+        if (ent.problemas.length) { ent.estado = 'inconformidad'; ent.nota = 'Registrado en la demostración.'; ent.resuelta = r() < 0.4; }
+      }
+      entregas.push(ent);
+    });
+  });
+  return { registros, entregas, informes: {} };
+}
+
+// ---------- Estado ----------
+const KEY = `comedor-digital.v1.${TODAY}`;
+function load() {
+  try { const v = localStorage.getItem(KEY); if (v) return JSON.parse(v); } catch { /* sin almacenamiento */ }
+  return demoData();
+}
+let data = load();
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {
+    if (e && e.name === 'QuotaExceededError') { toast('No hay espacio en este navegador para más fotos.'); return false; }
+  }
+  return true;
+}
+const ui = { role: 'school', school: 'e1', tab: 'hoy', dre: 'todas' };
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const fdate = (d, opt = { weekday: 'long', day: 'numeric', month: 'long' }) => new Date(`${d}T12:00:00`).toLocaleDateString('es-CR', opt);
+const school = (id) => ESCUELAS.find((e) => e.id === id);
+let toastTimer;
+function toast(t) { $('toast').textContent = t; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 3200); }
+
+// ---------- Cálculos ----------
+function daysWithData(id) { return Object.keys(data.registros[id] || {}).sort(); }
+function monthStats(id) {
+  const month = TODAY.slice(0, 7);
+  const regs = Object.entries(data.registros[id] || {}).filter(([d]) => d.startsWith(month));
+  const servidos = regs.filter(([, r]) => !r.sinServicio);
+  const alm = servidos.reduce((s, [, r]) => s + (r.almuerzo || 0), 0);
+  const des = servidos.reduce((s, [, r]) => s + (r.desayuno || 0), 0);
+  let lectivos = 0;
+  const d = new Date(`${month}-01T12:00:00`);
+  while (iso(d) <= TODAY) { if (isWeekday(iso(d))) lectivos += 1; d.setDate(d.getDate() + 1); }
+  return {
+    month, lectivos, registrados: regs.length, servidos: servidos.length, sinServicio: regs.filter(([, r]) => r.sinServicio),
+    alm, des, promAlm: servidos.length ? alm / servidos.length : 0,
+  };
+}
+function avgAttendance(id) {
+  const e = school(id);
+  const vals = Object.values(data.registros[id] || {}).filter((r) => !r.sinServicio).map((r) => r.almuerzo / e.benef);
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+}
+const openIssues = (id) => data.entregas.filter((x) => (!id || x.escuela === id) && x.estado === 'inconformidad' && !x.resuelta);
+
+// ---------- Vista de la escuela ----------
+function renderSchool() {
+  const e = school(ui.school);
+  const pend = data.entregas.filter((x) => x.escuela === e.id && x.estado === 'pendiente').length;
+  $('view').innerHTML = `
+    <div class="stack">
+      <div class="row between school-head">
+        <div><div class="eyebrow">Dirección Regional de ${esc(e.dre)} · ${fmt(e.benef)} estudiantes beneficiarios</div><h2>${esc(e.nombre)}</h2></div>
+        <label class="small muted">Ver como otra escuela<br><select class="big" id="sel-school">${ESCUELAS.map((x) => `<option value="${x.id}" ${x.id === e.id ? 'selected' : ''}>${esc(x.nombre)}</option>`).join('')}</select></label>
+      </div>
+      <div class="tabs" role="tablist">
+        <button type="button" data-tab="hoy" class="${ui.tab === 'hoy' ? 'on' : ''}">Hoy</button>
+        <button type="button" data-tab="entregas" class="${ui.tab === 'entregas' ? 'on' : ''}">Entregas de alimentos${pend ? `<span class="badge">${pend}</span>` : ''}</button>
+        <button type="button" data-tab="informe" class="${ui.tab === 'informe' ? 'on' : ''}">Informe del mes</button>
+      </div>
+      <div id="tab"></div>
+    </div>`;
+  $('sel-school').onchange = (ev) => { ui.school = ev.target.value; render(); };
+  document.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { ui.tab = b.dataset.tab; render(); }; });
+  if (ui.tab === 'hoy') renderToday(e);
+  else if (ui.tab === 'entregas') renderDeliveries(e);
+  else renderReport(e);
+}
+
+function renderToday(e) {
+  const reg = data.registros[e.id][TODAY];
+  const weekday = isWeekday(TODAY);
+  const last = daysWithData(e.id).filter((d) => d !== TODAY).slice(-15);
+  const counter = (key, label, hint, value) => `
+    <div class="meal"><h3>${label}</h3><div class="small muted">${hint}</div>
+      <div class="counter">
+        <button type="button" data-step="${key}" data-v="-1" aria-label="Restar uno">−</button>
+        <input id="c-${key}" type="number" inputmode="numeric" min="0" max="${e.benef * 2}" value="${value}" aria-label="${label}">
+        <button type="button" data-step="${key}" data-v="1" aria-label="Sumar uno">+</button>
+      </div>
+      <div class="quick">${[-10, 10, 50].map((v) => `<button type="button" data-step="${key}" data-v="${v}">${v > 0 ? '+' : ''}${v}</button>`).join('')}
+        <button type="button" data-fill="${key}">Todos (${fmt(e.benef)})</button></div>
+      <div class="pct" id="p-${key}"></div></div>`;
+  $('tab').innerHTML = `
+    <div class="grid2">
+      <section class="panel">
+        <div class="row between"><div><div class="eyebrow">Registro del día</div><h3 style="font-size:20px">${fdate(TODAY)}</h3></div>
+          ${reg ? '<span class="saved">✓ Ya registrado hoy</span>' : ''}</div>
+        ${weekday ? `
+        <form id="today-form">
+          <div class="meals">
+            ${counter('desayuno', 'Desayuno', 'Raciones servidas', reg?.desayuno ?? Math.round(e.benef * 0.5))}
+            ${counter('almuerzo', 'Almuerzo', 'Raciones servidas', reg?.almuerzo ?? Math.round(e.benef * e.asist))}
+          </div>
+          <div class="no-service">
+            <label><input type="checkbox" id="ns" ${reg?.sinServicio ? 'checked' : ''}> Hoy no hubo servicio de comedor</label>
+            <select id="ns-motivo" ${reg?.sinServicio ? '' : 'hidden'} aria-label="Motivo">${MOTIVOS.map((m) => `<option ${reg?.sinServicio === m ? 'selected' : ''}>${m}</option>`).join('')}</select>
+          </div>
+          <div class="row" style="margin-top:14px"><button type="submit" class="btn primary">${reg ? 'Actualizar registro' : 'Guardar registro de hoy'}</button>
+            <span class="small muted">Toma menos de un minuto. Solo se guardan cantidades.</span></div>
+        </form>` : '<p class="muted">Hoy no es día lectivo. El registro se abre de lunes a viernes.</p>'}
+      </section>
+      <section class="panel">
+        <div class="eyebrow">Últimos ${last.length} días lectivos</div>
+        ${barChart(e, last)}
+        <div class="legend"><span><i style="background:var(--leaf)"></i>Almuerzo</span><span><i style="background:var(--sky)"></i>Desayuno</span><span><i style="background:var(--tomato)"></i>Sin servicio</span></div>
+        <p class="small muted" style="margin-bottom:0">Asistencia promedio al almuerzo: <strong class="num">${Math.round(avgAttendance(e.id) * 100)} %</strong> de los beneficiarios.</p>
+      </section>
+    </div>`;
+  if (!weekday) return;
+  const upd = () => {
+    for (const k of ['desayuno', 'almuerzo']) {
+      const v = Number($(`c-${k}`).value) || 0;
+      $(`p-${k}`).textContent = `${Math.round((v / e.benef) * 100)} % de los ${fmt(e.benef)} beneficiarios`;
+    }
+    const ns = $('ns').checked;
+    $('ns-motivo').hidden = !ns;
+    document.querySelectorAll('.meal').forEach((m) => { m.style.opacity = ns ? 0.4 : 1; });
+  };
+  document.querySelectorAll('[data-step]').forEach((b) => {
+    b.onclick = () => { const i = $(`c-${b.dataset.step}`); i.value = Math.max(0, (Number(i.value) || 0) + Number(b.dataset.v)); upd(); };
+  });
+  document.querySelectorAll('[data-fill]').forEach((b) => { b.onclick = () => { $(`c-${b.dataset.fill}`).value = e.benef; upd(); }; });
+  ['c-desayuno', 'c-almuerzo', 'ns'].forEach((id) => { $(id).oninput = upd; $(id).onchange = upd; });
+  upd();
+  $('today-form').onsubmit = (ev) => {
+    ev.preventDefault();
+    data.registros[e.id][TODAY] = $('ns').checked ? { sinServicio: $('ns-motivo').value }
+      : { desayuno: Math.max(0, Number($('c-desayuno').value) || 0), almuerzo: Math.max(0, Number($('c-almuerzo').value) || 0) };
+    save();
+    toast('Registro guardado. El MEP ya lo ve en el tablero.');
+    render();
+  };
+}
+
+/** Barras por día (almuerzo y desayuno) a escala; los días sin servicio se marcan en rojo. */
+function barChart(e, days) {
+  const W = 560; const H = 210; const L = 40; const B = 26; const T = 10;
+  const max = Math.max(e.benef, ...days.map((d) => data.registros[e.id][d]?.almuerzo || 0));
+  const top = Math.ceil(max / 100) * 100;
+  const y = (v) => T + (H - T - B) * (1 - v / top);
+  const step = (W - L - 6) / Math.max(1, days.length);
+  const bw = Math.max(4, step * 0.36);
+  const ticks = [0, top / 2, top];
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Raciones servidas por día">`;
+  for (const t of ticks) svg += `<line x1="${L}" x2="${W}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${fmt(t)}</text>`;
+  svg += `<line x1="${L}" x2="${W}" y1="${y(e.benef)}" y2="${y(e.benef)}" stroke="var(--muted)" stroke-dasharray="4 4"/><text x="${W - 4}" y="${y(e.benef) - 5}" text-anchor="end">beneficiarios</text>`;
+  days.forEach((d, i) => {
+    const r = data.registros[e.id][d];
+    const x = L + 4 + i * step;
+    if (r?.sinServicio) svg += `<rect x="${x}" y="${y(top * 0.06)}" width="${bw * 2 + 2}" height="${y(0) - y(top * 0.06)}" fill="var(--tomato)" rx="2"><title>${fdate(d, { day: 'numeric', month: 'short' })}: sin servicio (${esc(r.sinServicio)})</title></rect>`;
+    else if (r) {
+      svg += `<rect x="${x}" y="${y(r.almuerzo)}" width="${bw}" height="${y(0) - y(r.almuerzo)}" fill="var(--leaf)" rx="2"><title>${fdate(d, { day: 'numeric', month: 'short' })}: ${fmt(r.almuerzo)} almuerzos</title></rect>`;
+      svg += `<rect x="${x + bw + 2}" y="${y(r.desayuno)}" width="${bw}" height="${y(0) - y(r.desayuno)}" fill="var(--sky)" rx="2"><title>${fmt(r.desayuno)} desayunos</title></rect>`;
+    }
+    if (i % 3 === 0) svg += `<text x="${x + bw}" y="${H - 8}" text-anchor="middle">${new Date(`${d}T12:00:00`).getDate()}</text>`;
+  });
+  return `${svg}</svg>`;
+}
+
+function renderDeliveries(e) {
+  const list = data.entregas.filter((x) => x.escuela === e.id).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const chip = (x) => (x.estado === 'pendiente' ? '<span class="chip pend">Por recibir</span>'
+    : x.estado === 'completa' ? '<span class="chip ok">Completa</span>'
+      : `<span class="chip bad">${x.problemas.map((p) => PROBLEMAS[p]).join(' · ')}</span>${x.resuelta ? ' <span class="chip ok">Resuelta</span>' : ''}`);
+  $('tab').innerHTML = `
+    <section class="panel">
+      <div class="row between" style="margin-bottom:12px"><div><div class="eyebrow">Entregas del proveedor</div><h3 style="font-size:20px">Recibir y reportar problemas</h3></div>
+        <span class="small muted">Si algo falta, llega tarde o en mal estado, queda una inconformidad con fotos que el MEP ve de inmediato.</span></div>
+      <ul class="deliveries">${list.map((x) => `
+        <li class="delivery ${x.estado === 'pendiente' ? 'pend' : x.estado === 'completa' ? 'ok' : 'bad'}">
+          <div class="row between"><strong>Semana del ${fdate(x.fecha, { day: 'numeric', month: 'long' })}</strong>${chip(x)}</div>
+          <div class="items">${x.items.map((it) => `${esc(it.producto)} ${fmt(it.recibido ?? it.pedido)}${it.recibido != null && it.recibido < it.pedido ? `/${fmt(it.pedido)}` : ''} ${it.unidad}`).join(' · ')}</div>
+          ${x.nota ? `<div class="small muted">${esc(x.nota)}</div>` : ''}
+          ${x.fotos?.length ? `<div class="previews">${x.fotos.map((f) => `<img src="${f}" alt="Foto de la entrega">`).join('')}</div>` : ''}
+          ${x.estado === 'pendiente' ? `<div><button type="button" class="btn primary" data-recv="${x.id}">Registrar recepción</button></div>` : ''}
+        </li>`).join('')}</ul>
+    </section>`;
+  document.querySelectorAll('[data-recv]').forEach((b) => { b.onclick = () => openReceive(data.entregas.find((x) => x.id === b.dataset.recv)); });
+}
+
+function openReceive(x) {
+  openModal(`<form id="recv-form"><h3>Recepción de alimentos</h3><div class="small muted">Semana del ${fdate(x.fecha, { day: 'numeric', month: 'long' })} · ${esc(x.proveedor)}</div>
+    <table class="recv"><tbody>${x.items.map((it, i) => `<tr><td>${esc(it.producto)}</td><td class="small muted">pedido ${fmt(it.pedido)} ${it.unidad}</td>
+      <td style="text-align:right"><input id="r-${i}" type="number" min="0" value="${it.pedido}" aria-label="Recibido de ${esc(it.producto)}"></td></tr>`).join('')}</tbody></table>
+    <div class="eyebrow" style="margin-bottom:6px">¿Hubo algún problema?</div>
+    <div class="checks">${Object.entries(PROBLEMAS).map(([k, v]) => `<label><input type="checkbox" value="${k}" ${k === 'faltante' ? 'disabled' : ''} class="prob"> ${v}</label>`).join('')}</div>
+    <label class="field">Comentario (opcional)<textarea id="r-nota" rows="2" maxlength="300" placeholder="Ej.: el pollo llegó sin refrigeración"></textarea></label>
+    <label class="field">Fotos (opcional, hasta 3)<input id="r-fotos" type="file" accept="image/*" multiple></label>
+    <div class="previews" id="r-prev"></div>
+    <div class="row"><button type="submit" class="btn primary" id="r-ok">Confirmar recepción</button><button type="button" class="btn ghost" data-close>Cancelar</button></div>
+  </form>`);
+  const sync = () => {
+    const short = x.items.some((it, i) => Number($(`r-${i}`).value) < it.pedido);
+    x.items.forEach((it, i) => $(`r-${i}`).classList.toggle('short', Number($(`r-${i}`).value) < it.pedido));
+    const f = document.querySelector('.prob[value="faltante"]');
+    f.checked = short;
+    const any = short || [...document.querySelectorAll('.prob')].some((c) => c.checked);
+    $('r-ok').textContent = any ? 'Confirmar y reportar inconformidad' : 'Confirmar recepción completa';
+    $('r-ok').className = `btn ${any ? 'warn' : 'primary'}`;
+  };
+  x.items.forEach((_, i) => { $(`r-${i}`).oninput = sync; });
+  document.querySelectorAll('.prob').forEach((c) => { c.onchange = sync; });
+  let fotos = [];
+  $('r-fotos').onchange = async (ev) => {
+    fotos = (await Promise.all([...ev.target.files].slice(0, 3).map(shrink))).filter(Boolean);
+    $('r-prev').innerHTML = fotos.map((f) => `<img src="${f}" alt="">`).join('');
+  };
+  sync();
+  $('recv-form').onsubmit = (ev) => {
+    ev.preventDefault();
+    const before = JSON.stringify(x);
+    x.items.forEach((it, i) => { it.recibido = Math.max(0, Number($(`r-${i}`).value) || 0); });
+    x.problemas = [...document.querySelectorAll('.prob')].filter((c) => c.checked).map((c) => c.value);
+    x.estado = x.problemas.length ? 'inconformidad' : 'completa';
+    x.nota = $('r-nota').value.trim();
+    x.fotos = fotos;
+    x.recibidaEl = TODAY;
+    if (!save()) { Object.assign(x, JSON.parse(before)); return; }
+    closeModal();
+    toast(x.problemas.length ? 'Inconformidad reportada. Le llega al MEP y al proveedor.' : 'Entrega recibida completa.');
+    render();
+  };
+}
+
+function shrink(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, 900 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+function renderReport(e) {
+  const m = monthStats(e.id);
+  const issues = data.entregas.filter((x) => x.escuela === e.id && x.fecha.startsWith(m.month) && x.estado === 'inconformidad');
+  const sent = data.informes[`${e.id}-${m.month}`];
+  const monthName = new Date(`${m.month}-15T12:00:00`).toLocaleDateString('es-CR', { month: 'long', year: 'numeric' });
+  $('tab').innerHTML = `
+    <section class="panel report">
+      <div class="eyebrow">Informe mensual del comedor · se arma solo con los registros diarios</div>
+      <h3 style="font-size:22px;margin-top:4px">${esc(e.nombre)} · ${monthName}</h3>
+      <dl>
+        <dt>Días lectivos hasta hoy</dt><dd class="num">${m.lectivos}</dd>
+        <dt>Días con registro</dt><dd class="num">${m.registrados} ${m.registrados < m.lectivos ? `<span class="chip pend">faltan ${m.lectivos - m.registrados}</span>` : ''}</dd>
+        <dt>Días con servicio</dt><dd class="num">${m.servidos}</dd>
+        <dt>Días sin servicio</dt><dd>${m.sinServicio.length ? m.sinServicio.map(([d, r]) => `${fdate(d, { day: 'numeric', month: 'short' })} (${esc(r.sinServicio)})`).join(', ') : 'Ninguno'}</dd>
+        <dt>Almuerzos servidos</dt><dd class="num">${fmt(m.alm)}</dd>
+        <dt>Desayunos servidos</dt><dd class="num">${fmt(m.des)}</dd>
+        <dt>Promedio diario de almuerzos</dt><dd class="num">${fmt(m.promAlm)} (${Math.round((m.promAlm / e.benef) * 100)} % de ${fmt(e.benef)} beneficiarios)</dd>
+        <dt>Inconformidades con entregas</dt><dd>${issues.length ? issues.map((x) => `${fdate(x.fecha, { day: 'numeric', month: 'short' })}: ${x.problemas.map((p) => PROBLEMAS[p]).join(', ')}`).join('; ') : 'Ninguna'}</dd>
+      </dl>
+      <div class="row">${sent ? `<span class="saved">✓ Enviado a la Dirección Regional el ${fdate(sent, { day: 'numeric', month: 'long' })}</span>`
+        : '<button type="button" class="btn primary" id="send">Enviar a la Dirección Regional</button>'}
+        <span class="small muted">Reemplaza el informe en papel o Excel que hoy se hace a mano.</span></div>
+    </section>`;
+  $('send')?.addEventListener('click', () => { data.informes[`${e.id}-${m.month}`] = TODAY; save(); toast('Informe enviado.'); render(); });
+}
+
+// ---------- Tablero del MEP ----------
+function renderMep() {
+  const dres = [...new Set(ESCUELAS.map((e) => e.dre))].sort();
+  const list = ESCUELAS.filter((e) => ui.dre === 'todas' || e.dre === ui.dre);
+  const ids = new Set(list.map((e) => e.id));
+  const weekday = isWeekday(TODAY);
+  const hoy = list.filter((e) => data.registros[e.id][TODAY]);
+  const racHoy = hoy.reduce((s, e) => s + (data.registros[e.id][TODAY].almuerzo || 0), 0);
+  const sinServMes = list.reduce((s, e) => s + monthStats(e.id).sinServicio.length, 0);
+  const abiertas = openIssues().filter((x) => ids.has(x.escuela));
+  const porTipo = Object.entries(PROBLEMAS).map(([k, v]) => [v, abiertas.filter((x) => x.problemas.includes(k)).length]);
+  const maxT = Math.max(1, ...porTipo.map((x) => x[1]));
+  $('view').innerHTML = `
+    <div class="row between" style="margin-bottom:14px">
+      <div><div class="eyebrow">Programa de comedores estudiantiles · ${fdate(TODAY)}</div><h2 style="font-size:24px">Tablero nacional</h2></div>
+      <label class="small muted">Dirección Regional<br><select class="big" id="sel-dre"><option value="todas">Todas</option>${dres.map((d) => `<option ${ui.dre === d ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select></label>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><span class="num">${hoy.length}/${list.length}</span><span>escuelas ya registraron hoy</span></div>
+      <div class="kpi"><span class="num">${fmt(racHoy)}</span><span>almuerzos servidos hoy (reportados)</span></div>
+      <div class="kpi ${sinServMes ? 'alert' : ''}"><span class="num">${sinServMes}</span><span>días sin servicio este mes</span></div>
+      <div class="kpi ${abiertas.length ? 'alert' : ''}"><span class="num">${abiertas.length}</span><span>inconformidades abiertas con proveedores</span></div>
+    </div>
+    <div class="grid2">
+      <section class="panel"><div class="eyebrow">Almuerzos servidos por día lectivo (todas las escuelas del filtro)</div>${nationalChart(list)}</section>
+      <section class="panel"><div class="eyebrow" style="margin-bottom:10px">Inconformidades abiertas por tipo</div>
+        <div class="hbars">${porTipo.map(([n, v]) => `<div class="hbar"><span>${n}</span><span class="track"><span style="width:${(v / maxT) * 100}%"></span></span><span class="num">${v}</span></div>`).join('')}</div>
+        <p class="small muted" style="margin:12px 0 0">Con las fotos y fechas de cada caso, el MEP puede reclamar al proveedor y medir su cumplimiento.</p></section>
+    </div>
+    <section class="panel" style="margin-top:16px">
+      <div class="eyebrow" style="margin-bottom:8px">Escuelas</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Escuela</th><th>Dirección Regional</th><th class="n">Beneficiarios</th><th>Hoy</th><th class="n">Asistencia prom.</th><th class="n">Días sin servicio (mes)</th><th class="n">Inconf. abiertas</th></tr></thead>
+        <tbody>${list.map((e) => {
+          const r = data.registros[e.id][TODAY];
+          const estado = !weekday ? '<span class="muted">No lectivo</span>' : !r ? '<span><span class="dot pend"></span>Sin registro</span>'
+            : r.sinServicio ? `<span><span class="dot bad"></span>Sin servicio</span>` : `<span><span class="dot ok"></span>${fmt(r.almuerzo)} almuerzos</span>`;
+          const ss = monthStats(e.id).sinServicio.length;
+          const oi = openIssues(e.id).length;
+          return `<tr><td><button type="button" class="btn ghost" style="padding:4px 10px" data-go="${e.id}">${esc(e.nombre)}</button></td><td>${esc(e.dre)}</td><td class="n">${fmt(e.benef)}</td><td>${estado}</td>
+            <td class="n">${Math.round(avgAttendance(e.id) * 100)} %</td><td class="n" style="${ss ? 'color:var(--tomato)' : ''}">${ss}</td><td class="n" style="${oi ? 'color:var(--tomato)' : ''}">${oi}</td></tr>`;
+        }).join('')}</tbody>
+      </table></div>
+      <p class="small muted" style="margin:10px 0 0">Las escuelas sin registro a media mañana aparecen en ámbar para que la Dirección Regional les dé seguimiento ese mismo día.</p>
+    </section>`;
+  $('sel-dre').onchange = (ev) => { ui.dre = ev.target.value; render(); };
+  document.querySelectorAll('[data-go]').forEach((b) => { b.onclick = () => { ui.role = 'school'; ui.school = b.dataset.go; ui.tab = 'hoy'; render(); window.scrollTo(0, 0); }; });
+}
+
+/** Área de almuerzos totales por día (últimos 20 días lectivos), con escala y cuadrícula. */
+function nationalChart(list) {
+  const days = schoolDaysBefore(20);
+  const vals = days.map((d) => list.reduce((s, e) => s + (data.registros[e.id][d]?.almuerzo || 0), 0));
+  const W = 560; const H = 220; const L = 50; const B = 26; const T = 12;
+  const top = Math.max(100, Math.ceil(Math.max(...vals) / 500) * 500);
+  const x = (i) => L + (i * (W - L - 10)) / Math.max(1, days.length - 1);
+  const y = (v) => T + (H - T - B) * (1 - v / top);
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Almuerzos servidos por día">`;
+  for (const t of [0, top / 2, top]) svg += `<line x1="${L}" x2="${W - 10}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${fmt(t)}</text>`;
+  const pts = vals.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+  svg += `<polygon points="${x(0)},${y(0)} ${pts} ${x(vals.length - 1)},${y(0)}" fill="var(--leaf)" fill-opacity=".14"/>`;
+  svg += `<polyline points="${pts}" fill="none" stroke="var(--leaf)" stroke-width="2.5" stroke-linejoin="round"/>`;
+  vals.forEach((v, i) => { svg += `<circle cx="${x(i)}" cy="${y(v)}" r="${i === vals.length - 1 ? 4.5 : 2.5}" fill="var(--leaf)"><title>${fdate(days[i], { day: 'numeric', month: 'short' })}: ${fmt(v)}</title></circle>`; });
+  days.forEach((d, i) => { if (i % 4 === 0 || i === days.length - 1) svg += `<text x="${x(i)}" y="${H - 8}" text-anchor="${i === days.length - 1 ? 'end' : 'middle'}">${new Date(`${d}T12:00:00`).getDate()}/${new Date(`${d}T12:00:00`).getMonth() + 1}</text>`; });
+  return `${svg}</svg><p class="small muted" style="margin:6px 0 0">Último día: <strong class="num">${fmt(vals.at(-1))}</strong> almuerzos. Las caídas muestran días sin servicio o sin registro.</p>`;
+}
+
+// ---------- Modal y navegación ----------
+function openModal(html) { $('modal').innerHTML = `<div class="modal-box" role="dialog" aria-modal="true">${html}</div>`; $('modal').hidden = false; $('modal').querySelector('input, button')?.focus(); }
+function closeModal() { $('modal').hidden = true; $('modal').innerHTML = ''; }
+$('modal').addEventListener('click', (e) => { if (e.target === $('modal') || e.target.closest('[data-close]')) closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('modal').hidden) closeModal(); });
+
+function render() {
+  $('role-school').classList.toggle('on', ui.role === 'school');
+  $('role-mep').classList.toggle('on', ui.role === 'mep');
+  if (ui.role === 'school') renderSchool(); else renderMep();
+}
+$('role-school').onclick = () => { ui.role = 'school'; render(); };
+$('role-mep').onclick = () => { ui.role = 'mep'; render(); };
+render();
+</script>
+</body>
+</html>
